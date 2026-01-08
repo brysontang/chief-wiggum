@@ -1,0 +1,19 @@
+{
+  "name": "chief-wiggum",
+  "version": "0.1.0",
+  "description": "Vim-native command center for orchestrating autonomous Claude Code agents. Dispatch verifiable tasks, track convergence, and manage multiple parallel Claude sessions.",
+  "author": {
+    "name": "Bryson Tang"
+  },
+  "repository": "https://github.com/brysontang/chief-wiggum",
+  "keywords": [
+    "orchestration",
+    "autonomous",
+    "ralph-wiggum",
+    "task-management",
+    "neovim",
+    "convergence",
+    "verification"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,35 @@
+{
+  "PostToolUse": [
+    {
+      "matcher": "Write|Edit|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/status-update.sh post_tool"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/status-update.sh stop"
+        }
+      ]
+    }
+  ],
+  "Notification": [
+    {
+      "matcher": "permission_prompt|idle_prompt",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/status-update.sh notify"
+        }
+      ]
+    }
+  ]
+}
