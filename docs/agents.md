@@ -1,53 +1,60 @@
-# Multi-Tool Agents
+# Agents
 
-**Agent = Tool + Model + Prompt**
+**Agent = Plugin + Instructions + Tools**
 
-Different AI tools have different training data, latent spaces, and personalities. Chief Wiggum lets you assign different tools to different stages:
+Chief Wiggum orchestrates Claude Code agents. Any agent from any plugin can be used in your task pipelines.
 
-```lua
-require("chief-wiggum").setup({
-  -- Override which tool an agent uses
-  agent_tool = {
-    implement = "claude",
-    review = "codex",    -- Different model catches different bugs
-    test = "aider",
-  },
+## Agent Format
 
-  -- Commands for each tool
-  dispatch_commands = {
-    claude = "tmux new-window -n '%s' 'cd %s && claude'",
-    codex = "tmux new-window -n '%s' 'cd %s && codex --task-file %s'",
-    aider = "tmux new-window -n '%s' 'cd %s && aider --message-file %s'",
-    ollama = "tmux new-window -n '%s' 'cd %s && ollama run %s < %s'",
-  },
-})
+Agents are referenced by their full name: `plugin:agent-name`
+
+```markdown
+### IMPLEMENT
+Agent: chief-wiggum:implement    # Built-in agent
+
+### SECURITY
+Agent: acme-corp:security-scan   # Your team's custom agent
+
+### PLAN
+Agent: human                     # Manual checkpoint (no dispatch)
 ```
 
-## The Council Pattern
+## Built-in Agents
 
-Use multiple models as checks and balances:
+Chief Wiggum provides these agents out of the box:
 
+| Agent | Purpose | Tools |
+|-------|---------|-------|
+| `chief-wiggum:recon` | Scan codebase, identify patterns | Read, Glob, Grep |
+| `chief-wiggum:implement` | Write code to spec | Read, Write, Edit, Bash, Glob, Grep |
+| `chief-wiggum:test` | Write and run tests | Read, Write, Edit, Bash, Glob, Grep |
+| `chief-wiggum:review` | Security and pattern review | Read, Glob, Grep |
+| `chief-wiggum:merge` | Rebase and merge prep | Read, Write, Edit, Bash, Glob, Grep |
+
+## Using Custom Agents
+
+Any Claude Code agent can be used. Just reference it by its full name:
+
+```markdown
+### LINT
+Agent: my-plugin:linter
+
+### DOCS
+Agent: docs-plugin:api-documenter
+
+### DEPLOY
+Agent: devops:deploy-checker
 ```
-Claude (implements)     Codex (reviews)
-        ↘                   ↙
-          [same code]
-        ↙                   ↘
-Different priors     Different blind spots
-```
 
-**Why this matters:**
-- Models trained on different data see different patterns
-- A bug obvious to one model may be invisible to another
-- Review by a different model catches implementation blind spots
+The agent must be installed as a Claude Code plugin. Chief Wiggum just orchestrates - it doesn't own the agents.
 
-## Creating Custom Agents
+## Creating Your Own Agents
 
-Agents live in your vault's `agents/` directory:
+Create agents as a Claude Code plugin. In your plugin's `agents/` directory:
 
 ```markdown
 ---
 name: security-review
-tool: claude
 description: Security-focused code review
 tools:
   - Read
@@ -64,7 +71,53 @@ You review code for security vulnerabilities.
 - [ ] SQL injection
 - [ ] XSS
 - [ ] Authentication bypass
-...
 ```
 
-The `tool` field in frontmatter specifies which AI tool runs this agent.
+Then reference it as `your-plugin:security-review` in task files.
+
+## Human Checkpoints
+
+Use `Agent: human` for stages that require manual intervention:
+
+```markdown
+### PLAN
+Agent: human
+- [ ] Define verification command
+- [ ] Set constraints
+- [ ] Approve scope
+```
+
+Human stages don't dispatch - you advance them manually after completing the checklist.
+
+## The Orchestration Model
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Task File (markdown)                                       │
+│                                                             │
+│  ### RESEARCH                                               │
+│  Agent: chief-wiggum:recon       ──────┐                   │
+│                                         │                   │
+│  ### IMPLEMENT                          │                   │
+│  Agent: chief-wiggum:implement   ──────┤ References        │
+│                                         │                   │
+│  ### SECURITY                           │                   │
+│  Agent: acme:security-scan       ──────┘                   │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Claude Code                                                │
+│                                                             │
+│  Resolves agents from installed plugins:                   │
+│    - chief-wiggum:recon → chief-wiggum plugin              │
+│    - acme:security-scan → acme plugin                      │
+│                                                             │
+│  Spawns the appropriate subagent for each stage            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Chief Wiggum is the **orchestration layer**. Agents are defined wherever makes sense:
+- **Shared agents** → Published plugins
+- **Team agents** → Team's private plugin
+- **Personal agents** → User's Claude Code config
