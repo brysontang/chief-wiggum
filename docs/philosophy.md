@@ -4,7 +4,7 @@ Chief Wiggum is inspired by the [ralph-wiggum](https://paddo.dev/blog/ralph-wigg
 
 ## Core Insights
 
-1. **Verification commands are everything** - A task isn't dispatchable unless completion can be verified by a command that outputs "DONE"
+1. **Verification commands are everything** - A task isn't dispatchable unless completion can be verified by a command (exit code 0 = success)
 2. **Failures are data** - Each iteration that doesn't complete provides directional feedback
 3. **The skill shifts** - From "directing Claude step by step" to "writing prompts that converge toward correct solutions"
 4. **State lives in files, not context** - Every dispatch is fresh; the filesystem is the memory

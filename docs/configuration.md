@@ -16,15 +16,15 @@ require("chief-wiggum").setup({
   -- Auto-reload buffers on status change
   auto_reload = true,
 
-  -- Show system notifications
+  -- Show system notifications (macOS + Linux)
   notify_on_complete = true,
 
   -- Iterations with same error before stuck
   stuck_threshold = 3,
 
   -- Git worktree settings
-  worktree_base = ".worktrees",   -- Relative to project root
-  auto_create_worktree = true,    -- Create worktree on first dispatch
+  worktree_base = ".worktrees",    -- Relative to project root
+  auto_create_worktree = false,    -- Create worktree on first dispatch
 
   -- Default stages for new tasks
   default_stages = { "RESEARCH", "PLAN", "IMPLEMENT", "TEST", "REVIEW", "MERGE" },
@@ -40,17 +40,17 @@ require("chief-wiggum").setup({
   },
 
   -- Override which tool an agent uses (optional)
+  -- Only 'claude' is fully supported. Other tools use template substitution.
   agent_tool = {
     -- implement = "claude",
-    -- review = "codex",
+    -- review = "aider",
   },
 
-  -- Commands for each AI tool
+  -- Dispatch command templates (named placeholders)
+  -- Available: {task_name}, {worktree}, {task_id}, {vault}, {task_file}, {model}, {prompt}
   dispatch_commands = {
-    claude = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude'",
-    codex = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s codex --task-file %s'",
-    aider = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s aider --message-file %s'",
-    ollama = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s ollama run %s < %s'",
+    claude = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'",
+    aider = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} aider --message {prompt}'",
   },
 
   -- Keymaps (set to false to disable)
@@ -68,11 +68,13 @@ require("chief-wiggum").setup({
 
 ## Terminal Alternatives
 
+Note: Only `claude` tool is fully supported with automatic `--agents` and `--max-turns` flags. These templates show the basic structure for other terminals.
+
 ### Kitty
 
 ```lua
 dispatch_commands = {
-  claude = "kitty @ new-window --title '%s' bash -c 'CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude'"
+  claude = "kitty @ new-window --title {task_name} bash -c 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'"
 }
 ```
 
@@ -80,7 +82,7 @@ dispatch_commands = {
 
 ```lua
 dispatch_commands = {
-  claude = "osascript -e 'tell app \"iTerm\" to create window with default profile command \"CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude\"'"
+  claude = "osascript -e 'tell app \"iTerm\" to create window with default profile command \"cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude\"'"
 }
 ```
 
@@ -88,7 +90,7 @@ dispatch_commands = {
 
 ```lua
 dispatch_commands = {
-  claude = "wezterm cli spawn --new-window -- bash -c 'CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude'"
+  claude = "wezterm cli spawn --new-window -- bash -c 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'"
 }
 ```
 

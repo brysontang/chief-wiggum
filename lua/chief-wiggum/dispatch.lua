@@ -273,8 +273,11 @@ Instructions:
 3. Read the verification command for this stage
 4. Do the work required
 5. Run the verification command
-6. If it passes, output: DONE
-7. If stuck after 3 similar failures, output: STUCK: <reason>
+6. If verification passes, output exactly: ###CHIEF_WIGGUM_DONE###
+7. If stuck after 3 similar failures, output: ###CHIEF_WIGGUM_STUCK###
+   Then on the next line, briefly explain why you're stuck.
+
+IMPORTANT: Use the exact markers above. They are used for automated status detection.
 
 State lives in files. Read the ## Log section to see what previous iterations did.
 Append your progress to the ## Log section.
@@ -303,6 +306,20 @@ local function build_agent_json(agent)
   return vim.json.encode(agent_def)
 end
 
+---Substitute named placeholders in a template string
+---@param template string Template with {placeholder} markers
+---@param values table<string, string> Map of placeholder names to values
+---@return string result Template with placeholders replaced
+local function substitute_template(template, values)
+  local result = template
+  for key, value in pairs(values) do
+    -- Escape the value for shell safety
+    local escaped = vim.fn.shellescape(value)
+    result = result:gsub("{" .. key .. "}", escaped)
+  end
+  return result
+end
+
 ---Build dispatch command with proper escaping
 ---@param task table Task data
 ---@param stage_name string Stage name
@@ -317,42 +334,56 @@ local function build_dispatch_command(task, stage_name, agent, config, worktree_
   -- Build the initial prompt
   local prompt = build_initial_prompt(task, stage_name, agent)
 
-  -- For now, only support claude directly
-  -- Other tools need different invocation patterns
-  if tool ~= "claude" then
-    return nil, string.format("Tool '%s' not yet supported. Use 'claude' or invoke manually.", tool)
-  end
-
   -- Check if tmux is available
   local tmux_check = vim.fn.system("command -v tmux")
   if vim.v.shell_error ~= 0 then
     return nil, "tmux not found. Install tmux or dispatch manually."
   end
 
-  -- Build agent JSON for subagent definition
-  local agent_json = build_agent_json(agent)
+  -- Get template for this tool
+  local template = config.dispatch_commands[tool]
+  if not template then
+    return nil, string.format("No dispatch template for tool '%s'. Add one to dispatch_commands config.", tool)
+  end
 
-  -- Max turns for cost control
-  local max_turns = config.max_turns or 20
+  -- For Claude, we add special flags (--agents, --max-turns)
+  -- Other tools use the template as-is
+  if tool == "claude" then
+    local agent_json = build_agent_json(agent)
+    local max_turns = config.max_turns or 20
 
-  -- Build command with proper shell escaping
-  -- Note: values inside the inner command need individual escaping for paths with spaces
-  local inner_cmd = string.format(
-    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude --agents %s --max-turns %d %s",
-    vim.fn.shellescape(worktree_path),
-    vim.fn.shellescape(task.id),
-    vim.fn.shellescape(config.vault_path),
-    vim.fn.shellescape(agent_json),
-    max_turns,
-    vim.fn.shellescape(prompt)
-  )
+    -- Build Claude-specific inner command
+    local inner_cmd = string.format(
+      "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude --agents %s --max-turns %d %s",
+      vim.fn.shellescape(worktree_path),
+      vim.fn.shellescape(task.id),
+      vim.fn.shellescape(config.vault_path),
+      vim.fn.shellescape(agent_json),
+      max_turns,
+      vim.fn.shellescape(prompt)
+    )
 
-  local cmd = string.format(
-    "tmux new-window -n %s %s",
-    vim.fn.shellescape(task.name:sub(1, 20)), -- tmux window name (truncated)
-    vim.fn.shellescape(inner_cmd)
-  )
+    local cmd = string.format(
+      "tmux new-window -n %s %s",
+      vim.fn.shellescape(task.name:sub(1, 20)),
+      vim.fn.shellescape(inner_cmd)
+    )
 
+    return cmd, nil
+  end
+
+  -- For other tools, use template substitution
+  local values = {
+    task_name = task.name:sub(1, 20),
+    worktree = worktree_path,
+    task_id = task.id,
+    vault = config.vault_path,
+    task_file = task.path,
+    model = agent.model or "",
+    prompt = prompt,
+  }
+
+  local cmd = substitute_template(template, values)
   return cmd, nil
 end
 

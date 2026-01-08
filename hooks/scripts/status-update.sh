@@ -31,6 +31,11 @@ if command -v jq &> /dev/null; then
   HAS_JQ=true
 else
   HAS_JQ=false
+  # Warn once per session (check if we've already warned)
+  if [[ -z "${CHIEF_WIGGUM_JQ_WARNED:-}" ]]; then
+    echo "[chief-wiggum] Warning: jq not found. Install jq for reliable status tracking." >&2
+    export CHIEF_WIGGUM_JQ_WARNED=1
+  fi
 fi
 
 # Read JSON from stdin
@@ -179,7 +184,18 @@ fi
 mkdir -p "$STATUS_DIR"
 
 STATUS_FILE="$STATUS_DIR/$TASK_ID.json"
+# Temp file for atomic writes (same dir to ensure same filesystem)
+STATUS_TEMP="$STATUS_DIR/.$TASK_ID.json.tmp.$$"
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# Atomic write helper - writes to temp file then moves
+atomic_write() {
+  local content="$1"
+  local dest="$2"
+  local temp="$3"
+  echo "$content" > "$temp"
+  mv -f "$temp" "$dest"
+}
 
 # Read current status or initialize
 if [[ -f "$STATUS_FILE" ]]; then
@@ -239,11 +255,12 @@ case "$EVENT_TYPE" in
   post_tool)
     # Tool was used - update last_update timestamp only
     if [[ "$HAS_JQ" == "true" ]]; then
-      echo "$CURRENT_STATUS" | jq --arg ts "$TIMESTAMP" '.last_update = $ts' > "$STATUS_FILE"
+      UPDATED=$(echo "$CURRENT_STATUS" | jq --arg ts "$TIMESTAMP" '.last_update = $ts')
     else
       # Simple sed replacement
-      sed "s/\"last_update\":[^,}]*/\"last_update\": \"$TIMESTAMP\"/" <<< "$CURRENT_STATUS" > "$STATUS_FILE"
+      UPDATED=$(sed "s/\"last_update\":[^,}]*/\"last_update\": \"$TIMESTAMP\"/" <<< "$CURRENT_STATUS")
     fi
+    atomic_write "$UPDATED" "$STATUS_FILE" "$STATUS_TEMP"
     ;;
 
   stop)
@@ -253,15 +270,15 @@ case "$EVENT_TYPE" in
     IS_DONE=false
     IS_STUCK=false
 
-    # Check transcript for DONE signal
+    # Check transcript for completion signals (unique markers to avoid false positives)
     if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" ]]; then
-      # Look for DONE in the last assistant message
-      if tail -100 "$TRANSCRIPT_PATH" 2>/dev/null | grep -q "DONE"; then
+      # Look for unique DONE marker in transcript
+      if tail -100 "$TRANSCRIPT_PATH" 2>/dev/null | grep -qF "###CHIEF_WIGGUM_DONE###"; then
         IS_DONE=true
         OUTCOME="completed successfully"
-      elif tail -100 "$TRANSCRIPT_PATH" 2>/dev/null | grep -q "STUCK:"; then
+      elif tail -100 "$TRANSCRIPT_PATH" 2>/dev/null | grep -qF "###CHIEF_WIGGUM_STUCK###"; then
         IS_STUCK=true
-        OUTCOME=$(tail -100 "$TRANSCRIPT_PATH" 2>/dev/null | grep -o "STUCK:.*" | head -1 | cut -c1-100)
+        OUTCOME=$(tail -100 "$TRANSCRIPT_PATH" 2>/dev/null | grep -oF "###CHIEF_WIGGUM_STUCK###" -A1 | tail -1 | cut -c1-100)
       else
         # Extract last error or outcome
         LAST_ERROR=$(tail -50 "$TRANSCRIPT_PATH" 2>/dev/null | grep -iE "(error|failed|exception|cannot|unable)" | tail -1 | cut -c1-100 || echo "")
@@ -298,8 +315,9 @@ case "$EVENT_TYPE" in
       NEW_STATUS="running"
     fi
 
-    # Write updated status
-    build_status_json "$TASK_ID" "$TASK_NAME" "$TASK_PATH" "$NEW_STATUS" "$NEW_ITER" "$MAX_ITER" "$NEW_HISTORY" "$STARTED_AT" "$TIMESTAMP" > "$STATUS_FILE"
+    # Write updated status (atomic)
+    UPDATED=$(build_status_json "$TASK_ID" "$TASK_NAME" "$TASK_PATH" "$NEW_STATUS" "$NEW_ITER" "$MAX_ITER" "$NEW_HISTORY" "$STARTED_AT" "$TIMESTAMP")
+    atomic_write "$UPDATED" "$STATUS_FILE" "$STATUS_TEMP"
 
     # Send notification for completion/stuck
     if [[ "$NEW_STATUS" == "completed" || "$NEW_STATUS" == "stuck" ]]; then
@@ -318,13 +336,14 @@ case "$EVENT_TYPE" in
     NOTIFICATION_TYPE=$(get_json_field "notification_type")
 
     if [[ "$NOTIFICATION_TYPE" == "permission_prompt" ]]; then
-      # Update status to needs_input
+      # Update status to needs_input (atomic)
       if [[ "$HAS_JQ" == "true" ]]; then
-        echo "$CURRENT_STATUS" | jq --arg ts "$TIMESTAMP" '.status = "needs_input" | .last_update = $ts' > "$STATUS_FILE"
+        UPDATED=$(echo "$CURRENT_STATUS" | jq --arg ts "$TIMESTAMP" '.status = "needs_input" | .last_update = $ts')
       else
-        sed -e "s/\"status\":[^,}]*/\"status\": \"needs_input\"/" \
-            -e "s/\"last_update\":[^,}]*/\"last_update\": \"$TIMESTAMP\"/" <<< "$CURRENT_STATUS" > "$STATUS_FILE"
+        UPDATED=$(sed -e "s/\"status\":[^,}]*/\"status\": \"needs_input\"/" \
+            -e "s/\"last_update\":[^,}]*/\"last_update\": \"$TIMESTAMP\"/" <<< "$CURRENT_STATUS")
       fi
+      atomic_write "$UPDATED" "$STATUS_FILE" "$STATUS_TEMP"
 
       SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
       bash "$SCRIPT_DIR/notify.sh" "$TASK_ID" "needs_input" "Permission required" 2>/dev/null || true

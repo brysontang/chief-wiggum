@@ -65,28 +65,20 @@ M.defaults = {
   },
 
   -- Dispatch command templates for each tool
-  -- Placeholders: %1=task_name, %2=worktree_path, %3=task_id, %4=vault_path, %5=prompt_file, %6=model
+  -- Named placeholders: {task_name}, {worktree}, {task_id}, {vault}, {task_file}, {model}, {prompt}
+  -- Note: Only 'claude' is fully supported. Other tools are templates for manual customization.
   dispatch_commands = {
-    -- Claude Code (default)
-    claude = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude'",
+    -- Claude Code (default, fully supported)
+    claude = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'",
 
-    -- OpenAI Codex CLI (hypothetical, adjust to actual CLI)
-    codex = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s codex --task-file %s'",
+    -- Aider (community template, adjust as needed)
+    aider = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} aider --message {prompt}'",
 
-    -- OpenCode
-    opencode = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s opencode'",
+    -- OpenCode (community template)
+    opencode = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} opencode'",
 
-    -- Aider
-    aider = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s aider --message-file %s'",
-
-    -- Ollama (local models)
-    ollama = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s ollama run %s < %s'",
-
-    -- Cursor (if CLI available)
-    cursor = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s cursor --task %s'",
-
-    -- Generic (reads prompt from file, outputs to stdout)
-    generic = "tmux new-window -n '%s' 'cd %s && cat %s | your-ai-tool'",
+    -- Generic (customize for your tool)
+    generic = "tmux new-window -n {task_name} 'cd {worktree} && echo {prompt} | your-ai-tool'",
   },
 
   -- Override which tool to use for specific agents (by agent name)

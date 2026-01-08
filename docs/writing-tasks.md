@@ -2,21 +2,20 @@
 
 ## The Verification Command
 
-Every task needs a verification command that outputs `DONE` on success:
+Every task needs a verification command that signals success. The agent will run this command and interpret the result:
 
 ```bash
 # Good: Specific and measurable
-npm test -- --grep "rate limit" && echo "DONE"
+npm test -- --grep "rate limit"
 
 # Good: Multiple checks
-npm run lint && npm test && npm run build && echo "DONE"
+npm run lint && npm test && npm run build
 
-# Bad: No completion signal
-npm test
-
-# Bad: Too broad
-npm run test:all && echo "DONE"
+# Bad: Too broad (takes forever, flaky)
+npm run test:all
 ```
+
+When verification passes (exit code 0), the agent outputs `###CHIEF_WIGGUM_DONE###` to signal completion. If stuck, it outputs `###CHIEF_WIGGUM_STUCK###`. These unique markers prevent false positives from transcript content containing words like "DONE".
 
 ## Convergent vs Divergent
 
@@ -59,7 +58,7 @@ Add IP-based rate limiting to /api/auth/* endpoints.
 
 ### IMPLEMENT <- ACTIVE
 Agent: implement
-Verification: `npm test -- --grep "rate limit" && echo DONE`
+Verification: `npm test -- --grep "rate limit"`
 
 ## Log
 <!-- Auto-appended by agents -->

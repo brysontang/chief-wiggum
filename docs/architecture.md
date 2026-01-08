@@ -26,7 +26,7 @@
 │                                                             │
 │  Hooks fire automatically:                                  │
 │    PostToolUse → Update status timestamp                   │
-│    Stop        → Check for DONE, update status             │
+│    Stop        → Check for completion marker               │
 │                  Exit 2 to continue if not done            │
 │    Notification → Alert on permission prompts              │
 │                                                             │
@@ -60,7 +60,7 @@
 
 ## The Ralph-Wiggum Pattern
 
-Chief Wiggum implements the [ralph-wiggum pattern](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/) for autonomous iteration. The Stop hook uses exit code 2 to trigger continuation until the task outputs "DONE".
+Chief Wiggum implements the [ralph-wiggum pattern](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/) for autonomous iteration. The Stop hook uses exit code 2 to trigger continuation until the agent outputs `###CHIEF_WIGGUM_DONE###` (a unique marker to avoid false positives).
 
 ## Status Window
 

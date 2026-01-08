@@ -12,6 +12,9 @@ local status_buf = nil
 ---@type number|nil Window handle for status window
 local status_win = nil
 
+---@type number Namespace for status window highlights
+local hl_ns = vim.api.nvim_create_namespace("chief-wiggum-status")
+
 ---Check if status window is open
 ---@return boolean
 function M.is_open()
@@ -56,7 +59,7 @@ local function get_status_hl(status)
 end
 
 ---Format duration from start time to now
----@param started_at string ISO timestamp
+---@param started_at string ISO timestamp (UTC with Z suffix)
 ---@return string
 local function format_duration(started_at)
   -- Parse ISO timestamp (simplified)
@@ -75,8 +78,15 @@ local function format_duration(started_at)
     sec = tonumber(s),
   })
 
-  local elapsed = os.time() - start_time
-  if elapsed < 60 then
+  -- Get current time in UTC to match the UTC timestamp
+  -- os.date("!*t") returns UTC time components
+  local now_utc = os.time(os.date("!*t"))
+  local elapsed = now_utc - start_time
+
+  -- Guard against negative values (clock drift, future timestamps)
+  if elapsed < 0 then
+    return "?"
+  elseif elapsed < 60 then
     return string.format("%ds", elapsed)
   elseif elapsed < 3600 then
     return string.format("%dm", math.floor(elapsed / 60))
@@ -337,9 +347,10 @@ function M.refresh()
   vim.api.nvim_buf_set_lines(status_buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(status_buf, "modifiable", false)
 
-  -- Apply highlights
+  -- Clear previous highlights and apply new ones
+  vim.api.nvim_buf_clear_namespace(status_buf, hl_ns, 0, -1)
   for _, hl in ipairs(highlights) do
-    vim.api.nvim_buf_add_highlight(status_buf, -1, hl[4], hl[1], hl[2], hl[3])
+    vim.api.nvim_buf_add_highlight(status_buf, hl_ns, hl[4], hl[1], hl[2], hl[3])
   end
 end
 

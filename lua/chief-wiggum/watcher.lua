@@ -159,15 +159,30 @@ function M.system_notify(config, task_name, status)
   local msg = messages[status] or status
   local title = "Chief Wiggum: " .. task_name
 
-  -- Use osascript for macOS notifications
+  -- Platform-specific notifications
   if vim.fn.has("mac") == 1 then
+    -- macOS: use osascript
+    -- Escape quotes for AppleScript
+    local safe_msg = msg:gsub('\\', '\\\\'):gsub('"', '\\"')
+    local safe_title = title:gsub('\\', '\\\\'):gsub('"', '\\"')
     local cmd = string.format(
       [[osascript -e 'display notification "%s" with title "%s"']],
-      msg,
-      title
+      safe_msg,
+      safe_title
+    )
+    vim.fn.jobstart(cmd, { detach = true })
+  elseif vim.fn.has("unix") == 1 and vim.fn.executable("notify-send") == 1 then
+    -- Linux: use notify-send
+    local urgency = (status == "stuck" or status == "needs_input") and "critical" or "normal"
+    local cmd = string.format(
+      "notify-send --urgency=%s %s %s",
+      urgency,
+      vim.fn.shellescape(title),
+      vim.fn.shellescape(msg)
     )
     vim.fn.jobstart(cmd, { detach = true })
   end
+  -- Other platforms: silent fallback
 end
 
 ---Stop the file watcher

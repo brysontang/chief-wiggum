@@ -186,14 +186,65 @@ function M.new_task(name)
   vim.notify("[chief-wiggum] Created new task: " .. filename, vim.log.levels.INFO)
 end
 
----List worktrees
+---List worktrees with staleness and dirty status
 function M.list_worktrees()
-  local worktrees = require("chief-wiggum.worktree").list()
-  local lines = { "Worktrees:" }
-  for _, wt in ipairs(worktrees) do
-    local line = string.format("  %s (%s)", wt.path, wt.branch or "detached")
-    table.insert(lines, line)
+  local wt_module = require("chief-wiggum.worktree")
+  local config = require("chief-wiggum.config").get()
+  local worktrees = wt_module.list()
+
+  if #worktrees == 0 then
+    vim.notify("[chief-wiggum] No worktrees found", vim.log.levels.INFO)
+    return
   end
+
+  local lines = { "Worktrees:" }
+  local git_root = vim.fn.trim(vim.fn.system("git rev-parse --show-toplevel 2>/dev/null"))
+  local worktree_base = config.worktree_base
+  if not worktree_base:match("^/") then
+    worktree_base = git_root .. "/" .. worktree_base
+  end
+
+  for _, wt in ipairs(worktrees) do
+    -- Skip the main worktree
+    if wt.bare then
+      goto continue
+    end
+
+    -- Extract task_id from path
+    local task_id = wt.path:match("/([^/]+)$")
+    local branch = wt.branch or "detached"
+    local status_parts = {}
+
+    -- Check if this is a chief-wiggum managed worktree
+    if task_id and wt.path:match(config.worktree_base) then
+      -- Check dirty status
+      local is_dirty = wt_module.is_dirty(task_id)
+      if is_dirty then
+        table.insert(status_parts, "dirty")
+      end
+
+      -- Check staleness (behind/ahead of main)
+      local behind, ahead = wt_module.staleness(task_id)
+      if behind > 0 or ahead > 0 then
+        local staleness = {}
+        if behind > 0 then
+          table.insert(staleness, string.format("-%d", behind))
+        end
+        if ahead > 0 then
+          table.insert(staleness, string.format("+%d", ahead))
+        end
+        table.insert(status_parts, table.concat(staleness, "/"))
+      end
+    end
+
+    -- Build the line
+    local status_str = #status_parts > 0 and " [" .. table.concat(status_parts, ", ") .. "]" or ""
+    local line = string.format("  %s (%s)%s", wt.path, branch, status_str)
+    table.insert(lines, line)
+
+    ::continue::
+  end
+
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
 end
 

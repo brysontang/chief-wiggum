@@ -53,11 +53,24 @@ TITLE_SAFE=$(escape_applescript "$TITLE")
 SUBTITLE_SAFE=$(escape_applescript "$SUBTITLE")
 MESSAGE_SAFE=$(escape_applescript "$MESSAGE")
 
-# macOS notification
-if [[ "$(uname)" == "Darwin" ]]; then
-    osascript -e "display notification \"$MESSAGE_SAFE\" with title \"$TITLE_SAFE\" subtitle \"$SUBTITLE_SAFE\" sound name \"$SOUND\"" 2>/dev/null || true
-fi
-
-# Could add Linux (notify-send) or terminal-notifier support here
+# Send notification based on platform
+case "$(uname)" in
+    Darwin)
+        # macOS: use osascript
+        osascript -e "display notification \"$MESSAGE_SAFE\" with title \"$TITLE_SAFE\" subtitle \"$SUBTITLE_SAFE\" sound name \"$SOUND\"" 2>/dev/null || true
+        ;;
+    Linux)
+        # Linux: use notify-send if available
+        if command -v notify-send &>/dev/null; then
+            # Map urgency based on status
+            URGENCY="normal"
+            [[ "$STATUS" == "stuck" || "$STATUS" == "needs_input" ]] && URGENCY="critical"
+            notify-send --urgency="$URGENCY" "$TITLE" "$SUBTITLE: $MESSAGE" 2>/dev/null || true
+        fi
+        ;;
+    *)
+        # Unsupported platform - silent fallback
+        ;;
+esac
 
 exit 0

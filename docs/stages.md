@@ -17,11 +17,11 @@ Agent: human
 
 ### IMPLEMENT
 Agent: implement
-Verification: `npm test -- --grep "rate limit" && echo DONE`
+Verification: `npm test -- --grep "rate limit"`
 
 ### TEST
 Agent: test
-Verification: `npm run test:coverage -- --threshold 80 && echo DONE`
+Verification: `npm run test:coverage -- --threshold 80`
 
 ### REVIEW
 Agent: review
@@ -34,10 +34,10 @@ Agent: merge
 
 | Keymap | Action |
 |--------|--------|
-| `<leader>wn` | Advance to next stage |
-| `<leader>wp` | Regress to previous stage |
-| `<CR>` | Toggle checkbox item |
-| `<leader>wd` | Dispatch current stage |
+| `gn` | Advance to next stage (mark current done) |
+| `gp` | Regress to previous stage |
+| `<CR>` | Dispatch current stage to its agent |
+| `<Space>` | Toggle checklist item |
 
 The `<- ACTIVE` marker shows which stage is current. Dispatching runs the agent for that stage with the stage's verification command.
 
