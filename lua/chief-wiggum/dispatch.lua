@@ -275,11 +275,19 @@ The subagent should:
 5. Run the verification command if one exists
 6. Append progress to the ## Log section
 
-When the subagent reports completion, output exactly: ###CHIEF_WIGGUM_DONE###
-When the subagent reports being stuck, output exactly: ###CHIEF_WIGGUM_STUCK###
-Then on the next line, include the reason from the subagent.
+When the subagent reports completion:
+1. Update the task file to advance the stage marker:
+   - Remove "← ACTIVE" from the current stage header
+   - Add "← ACTIVE" to the next stage header
+2. Then output exactly: ###CHIEF_WIGGUM_DONE###
+   followed by a brief summary of what was accomplished.
+
+When the subagent reports being stuck:
+1. Output exactly: ###CHIEF_WIGGUM_STUCK###
+   followed by the reason from the subagent.
 
 IMPORTANT: Use these exact markers. They are used for automated status detection.
+The stage marker MUST be moved before outputting DONE so the next dispatch knows which stage to run.
 ]], agent.name, stage_name, task.path)
 end
 
