@@ -16,19 +16,5 @@
     "convergence",
     "verification"
   ],
-  "license": "MIT",
-  "commands": "./commands",
-  "agents": [
-    "./agents/implement.md",
-    "./agents/merge.md",
-    "./agents/recon.md",
-    "./agents/review.md",
-    "./agents/test.md"
-  ],
-  "hooks": "./hooks/hooks.json",
-  "skills": [
-    "./skills/context-sync",
-    "./skills/task-convergence",
-    "./skills/task-execution"
-  ]
+  "license": "MIT"
 }
