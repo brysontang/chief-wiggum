@@ -151,3 +151,20 @@ Agent: human
 ```
 
 These don't dispatch - you complete them manually and advance with `<leader>wn`.
+
+## Autonomous Mode
+
+For the brave, set `auto_advance: true` in the Options section:
+
+```markdown
+## Options
+
+auto_advance: true  <!-- Runs until complete or stuck -->
+```
+
+With auto_advance enabled:
+- After each stage completes, the next stage automatically dispatches
+- Continues until it hits a `human` stage or the task is complete
+- Use the `autonomous.md` template for a no-human-stages pipeline
+
+⚠️ **Warning**: This will run up your Claude bill. Use wisely.

@@ -3,7 +3,7 @@
 ## Options
 
 <!-- Task-level settings -->
-auto_advance: false  <!-- Set to true for fully autonomous mode (skips human stages) -->
+auto_advance: true  <!-- YOLO mode: runs until complete or stuck -->
 
 ## Worktree
 
@@ -30,13 +30,7 @@ Branch:
 
 ## Stages
 
-<!-- Agent format: plugin:agent-name (any Claude Code agent)
-     - chief-wiggum:recon, chief-wiggum:implement, etc.
-     - your-plugin:custom-agent
-     - human (manual checkpoint, no dispatch)
-
-     Verification: customize per project (npm test, pytest, go test, etc.)
--->
+<!-- No human stages - fully autonomous pipeline -->
 
 ### RESEARCH ← ACTIVE
 Agent: chief-wiggum:recon
@@ -44,13 +38,6 @@ Agent: chief-wiggum:recon
 - [ ] Check adjacent MODULE.md files
 - [ ] Note dependencies and dependents
 → Notes:
-
-### PLAN
-Agent: human
-- [ ] Define verification command
-- [ ] Set constraints
-- [ ] Approve scope
-- [ ] Review research notes
 
 ### IMPLEMENT
 Agent: chief-wiggum:implement
@@ -62,28 +49,17 @@ Verification: `npm test`
 Agent: chief-wiggum:test
 - [ ] Write unit tests
 - [ ] Write integration tests
-- [ ] Verify coverage threshold
-Verification: `npm run test:coverage -- --threshold 80`
+Verification: `npm run test:coverage`
 
 ### REVIEW
 Agent: chief-wiggum:review
 - [ ] Security review
 - [ ] Pattern compliance
-- [ ] Human approval
-Verification: `echo "Human approved"`
-
-### MERGE
-Agent: chief-wiggum:merge
-- [ ] Rebase on main
-- [ ] Resolve conflicts
-- [ ] Final verification
-- [ ] Squash merge
-Verification: `npm run lint && npm test && npm run build`
+Verification: `npm run lint`
 
 ## Decisions Made
 
 <!-- Record non-obvious choices for future reference -->
-<!-- Link to [[decisions/YYYY-MM-topic]] for significant decisions -->
 
 ## Log
 
