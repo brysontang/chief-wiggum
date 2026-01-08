@@ -1,5 +1,6 @@
 ---
 name: recon-agent
+tool: claude
 description: Specialized agent for codebase analysis and improvement identification
 tools:
   - Glob

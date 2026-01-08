@@ -1,6 +1,8 @@
----Chief Wiggum - Vim-native command center for orchestrating autonomous Claude Code agents
+---Chief Wiggum - Vim-native command center for orchestrating autonomous AI agents
 ---
 ---"Bake 'em away, toys."
+---
+---State lives in files, not context. Each dispatch is a fresh start.
 ---
 ---@module chief-wiggum
 
@@ -24,6 +26,7 @@ function M.init_vault()
     "/prompts",
     "/templates",
     "/decisions",
+    "/agents",
   }
 
   for _, dir in ipairs(dirs) do
@@ -59,7 +62,12 @@ function M.show_status()
   require("chief-wiggum.status").show(config)
 end
 
----Dispatch a task
+---Dispatch current stage
+function M.dispatch_current()
+  require("chief-wiggum.dispatch").dispatch_current()
+end
+
+---Dispatch a specific file
 ---@param file_path string|nil Path to task file
 function M.dispatch(file_path)
   local config = require("chief-wiggum.config").get()
@@ -83,6 +91,37 @@ end
 function M.open_queue()
   local config = require("chief-wiggum.config").get()
   vim.cmd("edit " .. config.vault_path .. "/QUEUE.md")
+end
+
+---Advance to next stage
+function M.advance_stage()
+  require("chief-wiggum.stages").advance()
+end
+
+---Regress to previous stage
+function M.regress_stage()
+  require("chief-wiggum.stages").regress()
+end
+
+---Toggle checklist item under cursor
+function M.toggle_item()
+  require("chief-wiggum.stages").toggle_item()
+end
+
+---Open worktree in file explorer
+function M.open_worktree()
+  local config = require("chief-wiggum.config").get()
+  local stages = require("chief-wiggum.stages")
+
+  -- Get task ID from current file
+  local file = vim.fn.expand("%:p")
+  local task_id = vim.fn.fnamemodify(file, ":t:r")
+
+  if task_id and task_id ~= "" then
+    require("chief-wiggum.worktree").open(task_id, config.file_explorer)
+  else
+    vim.notify("[chief-wiggum] Cannot determine task ID from current file", vim.log.levels.WARN)
+  end
 end
 
 ---Create a new task from template
@@ -126,8 +165,11 @@ function M.new_task(name)
     if file then
       file:write("# " .. name .. "\n\n")
       file:write("## Objective\n\n")
-      file:write("## Verification Command\n```bash\n\n```\n\n")
-      file:write("## Prompt\n````\n\n````\n")
+      file:write("## Stages\n\n")
+      file:write("### IMPLEMENT ← ACTIVE\n")
+      file:write("Agent: implement\n")
+      file:write("Verification: `echo DONE`\n\n")
+      file:write("## Log\n")
       file:close()
     end
   end
@@ -136,9 +178,55 @@ function M.new_task(name)
   vim.notify("[chief-wiggum] Created new task: " .. filename, vim.log.levels.INFO)
 end
 
+---List worktrees
+function M.list_worktrees()
+  local worktrees = require("chief-wiggum.worktree").list()
+  local lines = { "Worktrees:" }
+  for _, wt in ipairs(worktrees) do
+    local line = string.format("  %s (%s)", wt.path, wt.branch or "detached")
+    table.insert(lines, line)
+  end
+  vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+end
+
+---Prune orphaned worktrees
+function M.prune_worktrees()
+  require("chief-wiggum.worktree").prune_orphaned()
+end
+
+---Setup keymaps for task files
+---@param config ChiefWiggumConfig
+local function setup_task_autocmd(config)
+  vim.api.nvim_create_autocmd("BufEnter", {
+    pattern = { "*/tasks/features/*.md", "*/.chief-wiggum/tasks/*.md" },
+    callback = function(ev)
+      local opts = { buffer = ev.buf, noremap = true, silent = true }
+
+      -- Stage navigation
+      vim.keymap.set("n", "gn", M.advance_stage,
+        vim.tbl_extend("force", opts, { desc = "Advance to next stage" }))
+      vim.keymap.set("n", "gp", M.regress_stage,
+        vim.tbl_extend("force", opts, { desc = "Regress to previous stage" }))
+      vim.keymap.set("n", "<CR>", M.dispatch_current,
+        vim.tbl_extend("force", opts, { desc = "Dispatch current stage" }))
+      vim.keymap.set("n", "<Space>", M.toggle_item,
+        vim.tbl_extend("force", opts, { desc = "Toggle checklist item" }))
+
+      -- Folding by stage
+      vim.opt_local.foldmethod = "expr"
+      vim.opt_local.foldexpr = "v:lua.require('chief-wiggum.stages').fold_expr(v:lnum)"
+      vim.opt_local.foldlevel = 1
+    end,
+    group = vim.api.nvim_create_augroup("ChiefWiggumTask", { clear = true }),
+  })
+end
+
 ---Setup chief-wiggum with user configuration
 ---@param opts? table User configuration overrides
 function M.setup(opts)
+  -- Mark as configured
+  vim.g.chief_wiggum_configured = true
+
   -- Setup configuration
   require("chief-wiggum.config").setup(opts)
   local config = require("chief-wiggum.config").get()
@@ -159,7 +247,7 @@ function M.setup(opts)
   end, {
     nargs = "?",
     complete = "file",
-    desc = "Dispatch a task to Claude Code",
+    desc = "Dispatch a task to an agent",
   })
 
   vim.api.nvim_create_user_command("ChiefWiggumRecon", function(cmd_opts)
@@ -190,43 +278,75 @@ function M.setup(opts)
     desc = "Create a new task from template",
   })
 
+  vim.api.nvim_create_user_command("ChiefWiggumAdvance", M.advance_stage, {
+    desc = "Advance to next stage",
+  })
+
+  vim.api.nvim_create_user_command("ChiefWiggumRegress", M.regress_stage, {
+    desc = "Regress to previous stage",
+  })
+
+  vim.api.nvim_create_user_command("ChiefWiggumWorktrees", M.list_worktrees, {
+    desc = "List all worktrees",
+  })
+
+  vim.api.nvim_create_user_command("ChiefWiggumPrune", M.prune_worktrees, {
+    desc = "Prune orphaned worktrees",
+  })
+
   -- Setup keymaps
   local keymaps = config.keymaps
   if keymaps then
     local map_opts = { noremap = true, silent = true }
 
     if keymaps.status then
-      vim.keymap.set("n", keymaps.status, M.show_status, vim.tbl_extend("force", map_opts, {
-        desc = "Chief Wiggum: Status window",
-      }))
+      vim.keymap.set("n", keymaps.status, M.show_status,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Status window" }))
     end
 
     if keymaps.dispatch then
-      vim.keymap.set("n", keymaps.dispatch, function()
-        require("chief-wiggum.dispatch").dispatch_current()
-      end, vim.tbl_extend("force", map_opts, {
-        desc = "Chief Wiggum: Dispatch current task",
-      }))
+      vim.keymap.set("n", keymaps.dispatch, M.dispatch_current,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Dispatch current stage" }))
     end
 
     if keymaps.command then
-      vim.keymap.set("n", keymaps.command, M.open_command, vim.tbl_extend("force", map_opts, {
-        desc = "Chief Wiggum: Open COMMAND.md",
-      }))
+      vim.keymap.set("n", keymaps.command, M.open_command,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Open COMMAND.md" }))
     end
 
     if keymaps.recon then
-      vim.keymap.set("n", keymaps.recon, M.run_recon, vim.tbl_extend("force", map_opts, {
-        desc = "Chief Wiggum: Run recon scan",
-      }))
+      vim.keymap.set("n", keymaps.recon, M.run_recon,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Run recon scan" }))
     end
 
     if keymaps.queue then
-      vim.keymap.set("n", keymaps.queue, M.open_queue, vim.tbl_extend("force", map_opts, {
-        desc = "Chief Wiggum: Open QUEUE.md",
-      }))
+      vim.keymap.set("n", keymaps.queue, M.open_queue,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Open QUEUE.md" }))
+    end
+
+    if keymaps.advance then
+      vim.keymap.set("n", keymaps.advance, M.advance_stage,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Advance stage" }))
+    end
+
+    if keymaps.regress then
+      vim.keymap.set("n", keymaps.regress, M.regress_stage,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Regress stage" }))
+    end
+
+    if keymaps.toggle then
+      vim.keymap.set("n", keymaps.toggle, M.toggle_item,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Toggle item" }))
+    end
+
+    if keymaps.worktree then
+      vim.keymap.set("n", keymaps.worktree, M.open_worktree,
+        vim.tbl_extend("force", map_opts, { desc = "Chief Wiggum: Open worktree" }))
     end
   end
+
+  -- Setup task file autocommands
+  setup_task_autocmd(config)
 
   -- Setup file watcher if enabled
   if config.auto_reload then

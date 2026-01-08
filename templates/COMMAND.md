@@ -1,66 +1,76 @@
 # Chief Wiggum Command Center
 
 > "Bake 'em away, toys."
+> Agents: {{active}}/{{max}} deployed
 
-## Deployed Agents
+## Active Worktrees
 
-| Status | Task | Iter | Trend | Last Outcome |
-|--------|------|------|-------|--------------|
-| _No active agents_ | | | | |
+| Task | Stage | Agent | Status | Stale | Trend |
+|------|-------|-------|--------|-------|-------|
+| _No active tasks_ | | | | | |
 
-<!-- Auto-updated by watching ~/.chief-wiggum/status/*.json -->
-<!-- Status icons: ● running, ✓ completed, ✗ stuck, ? needs_input, ○ pending -->
-<!-- Trend icons: ↑ converging, → stable, ↓ diverging/stuck -->
+<!-- Auto-populated from ~/.chief-wiggum/status/*.json -->
+<!-- Stale = commits behind main -->
+<!-- Trend: ↑ converging, → stable, ↓ stuck -->
 
 ## Needs Intervention
 
-<!-- Tasks marked stuck or needs_input - these need your attention -->
+<!-- Tasks marked stuck or needs_input -->
 
 _None_
+
+## Ready to Advance
+
+<!-- Tasks where current stage is DONE but not advanced yet -->
+
+| Task | Current Stage | Next Stage | Next Agent |
+|------|---------------|------------|------------|
+| | | | |
+
+## Ready to Merge
+
+<!-- Tasks in MERGE stage that are READY_TO_MERGE -->
+
+| Task | Behind Main | Conflicts | Action |
+|------|-------------|-----------|--------|
+| | | | `git merge --squash ...` |
+
+## Backlog
+
+<!-- Tasks not yet started (no worktree) -->
+
+| Task | First Stage | Objective |
+|------|-------------|-----------|
+| | | |
 
 ## Quick Actions
 
 | Key | Action |
 |-----|--------|
 | `<leader>ws` | Status window |
-| `<leader>wd` | Dispatch current file |
+| `<leader>wd` | Dispatch current stage |
+| `<leader>wn` | Advance to next stage |
+| `<leader>wp` | Regress to previous stage |
+| `<leader>wt` | Toggle checklist item |
+| `<leader>ww` | Open worktree |
 | `<leader>wr` | Run recon scan |
-| `<leader>wq` | Open queue |
 | `<leader>wc` | This file |
 
-## Queue
+## Recently Completed
 
-See [[QUEUE]] for prioritized tasks.
-
-### Ready to Dispatch
-
-<!-- Tasks with complete verification commands -->
-
-### Needs Work
-
-<!-- Tasks missing verification or unclear scope -->
-
-## Completed Today
-
-- [x] _None yet_
+| Task | Duration | Stages | Merged |
+|------|----------|--------|--------|
+| | | | |
 
 ## Recent Decisions
-
-<!-- Link to recent ADRs that may affect current work -->
 
 See [[decisions/]] for architectural decisions.
 
 Latest:
 - _None yet_
 
-## Recon Findings
-
-See [[tasks/RECON]] for latest codebase scan.
-
-**Last scan:** _Never_
-
 ---
 
 ## Notes
 
-<!-- Your working notes, context, things to remember -->
+<!-- Working notes, context, blockers -->

@@ -1,100 +1,154 @@
 ---
 name: dispatch
-description: Dispatch a task from the chief-wiggum queue and work on it autonomously
+description: Dispatch to work on a specific stage of a task
 arguments:
   - name: task
     description: Task ID or path to the feature/task file
     required: true
+  - name: stage
+    description: Stage to work on (e.g., IMPLEMENT, TEST). Defaults to current active stage.
+    required: false
+  - name: agent
+    description: Agent to use. Defaults to stage's configured agent.
+    required: false
 ---
 
 # Dispatch Task
 
-You are being dispatched to work on task: `$ARGUMENTS.task`
-
-## Instructions
-
-1. **Read the task file completely** - Understand the objective, constraints, and verification command
-2. **Note the verification command** - This is how you will know when you are done
-3. **Read any context files** mentioned in the task
-4. **Follow the plan/prompt** in the task file
-5. **After each significant change**, run the verification command
-6. **When verification passes**, output exactly: `DONE`
-
-## Critical Rules
-
-- **DO NOT** output "DONE" until the verification command actually succeeds
-- If you encounter the same error 3 times in a row, stop and explain what's blocking you
-- If verification requires manual testing you cannot perform, explain what the user needs to verify
-- Log significant progress to the task file's `## Log` section
-- Respect the `## Constraints` section - do not modify files you're told not to touch
-
-## Verification Pattern
-
-After implementing changes:
-
-```bash
-# Run the verification command from the task file
-# If it outputs DONE (or equivalent success), you're done
-# If it fails, read the error, fix the issue, and try again
-```
-
-## Completion Signal
-
-When the verification command succeeds, your final message must contain exactly:
-
-```
-DONE
-```
-
-This signals to the chief-wiggum hook system that the task is complete.
-
-## If Stuck
-
-If you cannot make progress after 3 similar attempts:
-
-1. Output: `STUCK: <brief description of the blocker>`
-2. The hook system will mark the task as needing human input
-3. Wait for the user to provide guidance
-
-## Post-Completion Report
-
-After outputting `DONE`, also provide a brief report:
-
-```markdown
-## Summary
-
-[1-2 sentences: what was accomplished]
-
-## Files Modified
-
-- `path/to/file.ts` - [brief description of change]
-- `path/to/other.ts` - [brief description]
-
-## Decisions Made
-
-Were any non-obvious choices made that future work should know about?
-
-- [ ] **New pattern introduced:** [description, why this pattern]
-- [ ] **Gotcha discovered:** [something surprising you encountered]
-- [ ] **Alternative rejected:** [what you didn't do, and why]
-- [ ] **Exception to existing pattern:** [if you deviated, why]
-
-## Context Files Updated
-
-Did you update any MODULE.md or CONTEXT.md files? If not, should you have?
-
-- [ ] Updated: [path]
-- [ ] Should create: [path] - [why this module needs docs]
-
-## Suggested Follow-up
-
-Any related work that should be done next?
-
-- [ ] [task idea]
-```
-
-This report helps build the decision trace for future reference and identifies any architectural decisions that should become ADRs.
+You are being dispatched to work on: `$ARGUMENTS.task`
+Stage: `$ARGUMENTS.stage` (or current active)
+Agent: `$ARGUMENTS.agent` (or stage default)
 
 ---
 
-Now read the task file at `$ARGUMENTS.task` and begin working.
+## Context is Fresh
+
+**You are starting with a clean context window. You have no memory of previous sessions.**
+
+Everything you need to know is in:
+1. **The task file** - Objective, constraints, verification command
+2. **The ## Log section** - What previous iterations accomplished
+3. **MODULE.md files** - Patterns in the code
+4. **Git history** - What changed recently (`git log --oneline -10`)
+5. **The code itself** - Current state on disk
+
+Do not assume context from previous conversations. There are none.
+Read the state. Do the work. Update the state.
+
+---
+
+## Instructions
+
+1. **Read the task file completely**
+   - Find the current active stage (marked with `← ACTIVE`)
+   - Note the stage's verification command
+   - Read the `## Log` section to see what previous iterations did
+
+2. **Run context-sync protocol**
+   - Check for MODULE.md in directories you'll modify
+   - Read context files listed in the task
+   - Understand existing patterns before changing anything
+
+3. **Do the work for THIS stage only**
+   - Stay within the stage's scope
+   - Run verification after each significant change
+   - Don't skip ahead to other stages
+
+4. **Update state in files**
+   - Append to `## Log` section with your progress
+   - Update `## Decisions Made` if you made non-obvious choices
+   - Update MODULE.md if you introduced new patterns
+
+5. **Signal completion**
+   - `DONE` when verification passes
+   - `STUCK: <reason>` if blocked after 3 similar attempts
+
+---
+
+## State Lives in Files
+
+### What you read:
+```
+## Log
+- [10:42] IMPLEMENT iter 1: missing import for Redis
+- [10:45] IMPLEMENT iter 2: type error in middleware
+```
+
+This tells you: two previous attempts, what went wrong. You don't need to "remember" - just read.
+
+### What you write:
+```
+## Log
+- [10:42] IMPLEMENT iter 1: missing import for Redis
+- [10:45] IMPLEMENT iter 2: type error in middleware
+- [10:51] IMPLEMENT iter 3: added import, fixed types, tests pass
+```
+
+Next iteration (or next human) reads this and knows what happened.
+
+---
+
+## Verification Pattern
+
+Each stage has its own verification command. Find it in the stage section:
+
+```markdown
+### IMPLEMENT
+Agent: implement
+- [ ] Implementation tasks
+Verification: `npm test -- --grep "rate limit" && echo DONE`
+```
+
+Run this command. If it outputs DONE, you're done with the stage.
+
+---
+
+## Completion Signals
+
+### Stage Complete
+```
+DONE
+```
+The stage verification passed. The hook system will record this.
+
+### Stuck
+```
+STUCK: <brief description>
+```
+You tried 3+ times with similar failures. Need human input.
+
+### Ready to Merge (MERGE stage only)
+```
+READY_TO_MERGE
+```
+The branch is rebased, tests pass, ready for human to merge.
+
+---
+
+## Post-Stage Report
+
+After `DONE`, append to the task file's `## Log`:
+
+```markdown
+- [HH:MM] STAGE iter N: DONE - brief summary
+  - Files: path/to/changed.ts, path/to/other.ts
+  - Decision: chose X over Y because Z
+  - Gotcha: watch out for W
+```
+
+This IS the memory. Next agent reads this.
+
+---
+
+## Critical Rules
+
+- **DO NOT** output "DONE" until verification actually succeeds
+- **DO NOT** assume context from "previous conversations" - there are none
+- **DO** read the `## Log` to understand what happened before
+- **DO** write to `## Log` so next iteration knows what you did
+- **DO** update MODULE.md if you introduce new patterns
+- **DO** stay within your stage's scope
+
+---
+
+Now read the task file and begin working on the current stage.

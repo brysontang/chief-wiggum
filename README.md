@@ -13,6 +13,51 @@ This builds on the [ralph-wiggum](https://github.com/brysontang/ralph-wiggum) au
 1. **Verification commands are everything** - A task isn't dispatchable unless completion can be verified by a command that outputs "DONE"
 2. **Failures are data** - Each iteration that doesn't complete provides directional feedback
 3. **The skill shifts** - From "directing Claude step by step" to "writing prompts that converge toward correct solutions"
+4. **State lives in files, not context** - Every dispatch is fresh; the filesystem is the memory
+
+### Why Fresh Contexts
+
+Chief Wiggum dispatches agents with **fresh context windows every time**. This is intentional:
+
+```
+Traditional approach:
+┌─────────────────────────────────────────┐
+│ Context Window                          │
+│ ┌─────────────────────────────────────┐ │
+│ │ iter 1: tried X, failed            │ │
+│ │ iter 2: tried Y, failed            │ │
+│ │ iter 3: tried Z, failed            │ │
+│ │ iter 4: tried X again (forgot!)    │ │  ← Context pollution
+│ │ iter 5: confused by old context    │ │
+│ │ ...                                 │ │
+│ │ iter N: context full, degraded     │ │
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+
+Chief Wiggum approach:
+┌─────────────┐   ┌─────────────┐   ┌─────────────┐
+│ Fresh       │   │ Fresh       │   │ Fresh       │
+│ Context     │   │ Context     │   │ Context     │
+│             │   │             │   │             │
+│ Read task → │   │ Read task → │   │ Read task → │
+│ See log     │   │ See log     │   │ See log     │
+│ Know state  │   │ Know state  │   │ Know state  │
+└─────────────┘   └─────────────┘   └─────────────┘
+      ↓                 ↓                 ↓
+   task.md           task.md           task.md
+   (updated)         (updated)         (updated)
+```
+
+**The agent doesn't remember. The files remember.**
+
+Each dispatch reads:
+- **The task file** - Objective, constraints, verification command
+- **The ## Log section** - What previous iterations accomplished
+- **MODULE.md files** - Patterns in the code
+- **Git history** - What changed recently
+- **The code itself** - Current state on disk
+
+This eliminates context pollution and gives each iteration the agent's full attention.
 
 ### Tasks That Work
 
@@ -163,7 +208,190 @@ This spawns a new Claude Code session in tmux with the task context.
 <leader>ws
 ```
 
-Opens a floating status window showing all active agents:
+Opens a floating status window showing all active agents.
+
+## Stage Pipelines
+
+Tasks flow through stages, each with its own agent:
+
+```markdown
+## Stages
+
+### RESEARCH <- ACTIVE
+Agent: recon
+- [ ] Identify files that handle rate limiting
+- [ ] Check existing middleware patterns
+
+### PLAN
+Agent: human
+- [ ] Decide on rate limiting algorithm
+- [ ] Choose storage backend
+
+### IMPLEMENT
+Agent: implement
+Verification: `npm test -- --grep "rate limit" && echo DONE`
+
+### TEST
+Agent: test
+Verification: `npm run test:coverage -- --threshold 80 && echo DONE`
+
+### REVIEW
+Agent: review
+
+### MERGE
+Agent: merge
+```
+
+### Stage Navigation
+
+| Keymap | Action |
+|--------|--------|
+| `<leader>wn` | Advance to next stage |
+| `<leader>wp` | Regress to previous stage |
+| `<CR>` | Toggle checkbox item |
+| `<leader>wd` | Dispatch current stage |
+
+The `<- ACTIVE` marker shows which stage is current. Dispatching runs the agent for that stage with the stage's verification command.
+
+### Default Stage Agents
+
+| Stage | Agent | Purpose |
+|-------|-------|---------|
+| RESEARCH | recon | Scan codebase, identify patterns |
+| PLAN | human | Requires human decision-making |
+| IMPLEMENT | implement | Write the code |
+| TEST | test | Add test coverage |
+| REVIEW | review | Check for bugs, security, patterns |
+| MERGE | merge | Rebase and prepare for merge |
+
+## Multi-Tool Agents
+
+**Agent = Tool + Model + Prompt**
+
+Different AI tools have different training data, latent spaces, and personalities. Chief Wiggum lets you assign different tools to different stages:
+
+```lua
+require("chief-wiggum").setup({
+  -- Override which tool an agent uses
+  agent_tool = {
+    implement = "claude",
+    review = "codex",    -- Different model catches different bugs
+    test = "aider",
+  },
+
+  -- Commands for each tool
+  dispatch_commands = {
+    claude = "tmux new-window -n '%s' 'cd %s && claude'",
+    codex = "tmux new-window -n '%s' 'cd %s && codex --task-file %s'",
+    aider = "tmux new-window -n '%s' 'cd %s && aider --message-file %s'",
+    ollama = "tmux new-window -n '%s' 'cd %s && ollama run %s < %s'",
+  },
+})
+```
+
+### The Council Pattern
+
+Use multiple models as checks and balances:
+
+```
+Claude (implements)     Codex (reviews)
+        ↘                   ↙
+          [same code]
+        ↙                   ↘
+Different priors     Different blind spots
+```
+
+**Why this matters:**
+- Models trained on different data see different patterns
+- A bug obvious to one model may be invisible to another
+- Review by a different model catches implementation blind spots
+
+### Creating Custom Agents
+
+Agents live in your vault's `agents/` directory:
+
+```markdown
+---
+name: security-review
+tool: claude
+description: Security-focused code review
+tools:
+  - Read
+  - Glob
+  - Grep
+---
+
+# Security Review Agent
+
+You review code for security vulnerabilities.
+
+## Checklist
+- [ ] Input validation
+- [ ] SQL injection
+- [ ] XSS
+- [ ] Authentication bypass
+...
+```
+
+The `tool` field in frontmatter specifies which AI tool runs this agent.
+
+## Git Worktrees
+
+Each task gets an isolated git worktree, preventing work from colliding:
+
+```
+project/
+├── .git/
+├── src/
+└── .worktrees/
+    ├── rate-limiter/      # Task: rate-limiter
+    │   ├── src/
+    │   └── ...
+    └── db-migration/      # Task: db-migration
+        ├── src/
+        └── ...
+```
+
+### Worktree Commands
+
+| Command | Description |
+|---------|-------------|
+| `:ChiefWiggumWorktrees` | List all task worktrees |
+| `:ChiefWiggumPrune` | Remove orphaned worktrees |
+
+### How It Works
+
+1. **First dispatch** creates a worktree at `.worktrees/<task-id>`
+2. **Agent runs** in the worktree, isolated from main branch
+3. **Changes stay isolated** until MERGE stage
+4. **Merge agent** handles rebase and conflict resolution
+
+### Worktree Benefits
+
+- **No branch switching** - Work on multiple tasks simultaneously
+- **Clean main branch** - WIP code never touches main
+- **Easy cleanup** - Delete worktree, no trace left
+- **Parallel agents** - Multiple agents can work without conflicts
+
+### Staleness Detection
+
+```vim
+:ChiefWiggumWorktrees
+```
+
+Shows how far behind main each worktree is:
+
+```
+╭─ Worktrees ─────────────────────────────────────╮
+│ rate-limiter    5 commits behind  [dirty]      │
+│ db-migration    0 commits behind  [clean]      │
+│ auth-refactor   12 commits behind [clean]      │
+╰─────────────────────────────────────────────────╯
+```
+
+## Status Window
+
+Opening the status window:
 
 ```
 ╭─────────────────────────────────────────────────────────╮
@@ -207,16 +435,30 @@ The trend indicators (`↑ converging`, `→ stable`, `↓ stuck/diverging`) hel
 | `:ChiefWiggumRecon [dir]` | Run codebase scan |
 | `:ChiefWiggumInit` | Initialize vault |
 | `:ChiefWiggumNew <name>` | Create new task |
+| `:ChiefWiggumAdvance` | Advance to next stage |
+| `:ChiefWiggumRegress` | Go back to previous stage |
+| `:ChiefWiggumWorktrees` | List all task worktrees |
+| `:ChiefWiggumPrune` | Remove orphaned worktrees |
 
 ### Default Keymaps
 
 | Keymap | Action |
 |--------|--------|
 | `<leader>ws` | Status window |
-| `<leader>wd` | Dispatch current file |
+| `<leader>wd` | Dispatch current file/stage |
 | `<leader>wc` | Open COMMAND.md |
 | `<leader>wr` | Run recon scan |
 | `<leader>wq` | Open QUEUE.md |
+| `<leader>wn` | Advance to next stage |
+| `<leader>wp` | Regress to previous stage |
+
+### Task File Keymaps
+
+When editing a task file with stages:
+
+| Keymap | Action |
+|--------|--------|
+| `<CR>` | Toggle checkbox item |
 
 ### Claude Code Commands
 
@@ -233,9 +475,6 @@ require("chief-wiggum").setup({
   -- Where all chief-wiggum data lives
   vault_path = "~/.chief-wiggum",
 
-  -- Command to spawn Claude (tmux, kitty, etc.)
-  dispatch_cmd = "tmux new-window -n '%s' 'CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude'",
-
   -- Maximum concurrent agents
   max_agents = 5,
 
@@ -248,6 +487,45 @@ require("chief-wiggum").setup({
   -- Iterations with same error before stuck
   stuck_threshold = 3,
 
+  -- Git worktree settings
+  worktree = {
+    enabled = true,
+    base_dir = ".worktrees",  -- Relative to project root
+    auto_create = true,       -- Create worktree on first dispatch
+    auto_cleanup = false,     -- Remove worktree after merge
+  },
+
+  -- Stage pipeline settings
+  stages = {
+    enabled = true,
+    auto_advance = false,     -- Auto-advance stage on DONE
+    default_stages = { "RESEARCH", "PLAN", "IMPLEMENT", "TEST", "REVIEW", "MERGE" },
+  },
+
+  -- Default agent for each stage
+  agent_for_stage = {
+    RESEARCH = "recon",
+    PLAN = "human",         -- "human" means don't dispatch, requires manual work
+    IMPLEMENT = "implement",
+    TEST = "test",
+    REVIEW = "review",
+    MERGE = "merge",
+  },
+
+  -- Override which tool an agent uses (optional)
+  agent_tool = {
+    -- implement = "claude",
+    -- review = "codex",
+  },
+
+  -- Commands for each AI tool
+  dispatch_commands = {
+    claude = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude'",
+    codex = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s codex --task-file %s'",
+    aider = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s aider --message-file %s'",
+    ollama = "tmux new-window -n '%s' 'cd %s && CHIEF_WIGGUM_TASK_ID=%s ollama run %s < %s'",
+  },
+
   -- Keymaps (set to false to disable)
   keymaps = {
     status = "<leader>ws",
@@ -255,6 +533,8 @@ require("chief-wiggum").setup({
     command = "<leader>wc",
     recon = "<leader>wr",
     queue = "<leader>wq",
+    advance = "<leader>wn",
+    regress = "<leader>wp",
   },
 })
 ```
@@ -445,6 +725,13 @@ For simpler one-off loops, use ralph-wiggum directly. Use Chief Wiggum when you 
 │   │   ├── rate-limiter.md
 │   │   └── db-migration.md
 │   └── RECON.md         # Latest recon findings
+├── agents/              # Custom agent definitions
+│   ├── implement.md
+│   ├── test.md
+│   ├── review.md
+│   ├── merge.md
+│   ├── recon.md
+│   └── security-review.md  # Your custom agents
 ├── decisions/           # Architectural Decision Records (ADRs)
 │   └── 2026-01-auth-pattern.md
 ├── status/              # JSON status files (auto-managed)
@@ -455,6 +742,13 @@ For simpler one-off loops, use ralph-wiggum directly. Use Chief Wiggum when you 
 └── templates/           # Your customized templates
     ├── feature.md
     └── decision.md
+
+project/                 # Your project (when using worktrees)
+├── .git/
+├── src/
+└── .worktrees/          # Task worktrees (gitignored)
+    ├── rate-limiter/
+    └── db-migration/
 ```
 
 ## Skills

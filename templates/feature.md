@@ -1,73 +1,78 @@
 # {{TASK_NAME}}
 
-## Type
+## Worktree
 
-<!-- One of: mechanical | exploratory | architectural -->
-<!-- mechanical: Clear verification, can run autonomously -->
-<!-- exploratory: Needs human judgment, don't dispatch -->
-<!-- architectural: Needs discussion, don't dispatch -->
-mechanical
+<!-- Populated when worktree is created -->
+Path:
+Branch:
 
 ## Objective
 
-<!-- One sentence. What does "done" look like? Be specific. -->
-
-## Verification Command
-
-<!-- MOST IMPORTANT SECTION -->
-<!-- This command MUST output "DONE" when the task is complete -->
-<!-- If you can't write this, the task isn't dispatchable -->
-
-```bash
-
-```
+<!-- One sentence. What does "done" look like? -->
 
 ## Constraints
 
 <!-- What Claude should NOT do -->
-<!-- Files NOT to modify -->
-<!-- Patterns to avoid -->
-<!-- Dependencies NOT to add -->
-
 - Do not modify existing tests (only add new ones)
 - Do not change the public API
 - Do not add new dependencies
 
 ## Context Files
 
-<!-- Files Claude should read first to understand the system -->
-<!-- Be specific - don't just say "look at the codebase" -->
-
+<!-- Files Claude should read first -->
 -
 -
 
-## Max Iterations
+## Stages
 
-<!-- How many attempts before marking as stuck -->
-<!-- Default: 20. Increase for complex migrations. -->
-20
+### RESEARCH ← ACTIVE
+Agent: recon
+- [ ] Investigate existing patterns
+- [ ] Check adjacent MODULE.md files
+- [ ] Note dependencies and dependents
+→ Notes:
 
-## Prompt
+### PLAN
+Agent: human
+- [ ] Define verification command
+- [ ] Set constraints
+- [ ] Approve scope
+- [ ] Review research notes
 
-````
-<!-- The actual instructions Claude receives -->
-<!-- Be specific about what to do and what success looks like -->
-<!-- Reference the verification command -->
+### IMPLEMENT
+Agent: implement
+- [ ] Implementation tasks here
+- [ ] Update MODULE.md if new patterns
+Verification: `npm test && echo DONE`
 
+### TEST
+Agent: test
+- [ ] Write unit tests
+- [ ] Write integration tests
+- [ ] Verify coverage threshold
+Verification: `npm run test:coverage -- --threshold 80 && echo DONE`
 
+### REVIEW
+Agent: review
+- [ ] Security review
+- [ ] Pattern compliance
+- [ ] Human approval
+Verification: `echo "Human approved" && echo DONE`
 
-After each significant change, verify with:
-```bash
-[paste verification command here]
-```
+### MERGE
+Agent: merge
+- [ ] Rebase on main
+- [ ] Resolve conflicts
+- [ ] Final verification
+- [ ] Squash merge
+Verification: `npm run lint && npm test && npm run build && echo READY_TO_MERGE`
 
-If verification passes, output exactly: DONE
-If verification fails, read the error message carefully, fix the issue, and try again.
+## Decisions Made
 
-If you encounter the same error 3 times, stop and output: STUCK: [description of what's blocking]
-````
+<!-- Record non-obvious choices for future reference -->
+<!-- Link to [[decisions/YYYY-MM-topic]] for significant decisions -->
 
 ## Log
 
-<!-- Auto-appended by hooks during execution -->
-<!-- Format: [timestamp] iteration N: outcome -->
+<!-- Auto-appended by agents. This IS the iteration history. -->
+<!-- Format: [timestamp] STAGE iter N: outcome -->
