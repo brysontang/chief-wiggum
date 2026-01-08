@@ -53,6 +53,14 @@ function M.init_vault()
     end
   end
 
+  -- Create worktree base directory in project root (if in a git repo)
+  local git_root = vim.fn.trim(vim.fn.system("git rev-parse --show-toplevel 2>/dev/null"))
+  if vim.v.shell_error == 0 and git_root ~= "" then
+    local worktree_base = git_root .. "/" .. config.worktree_base
+    vim.fn.mkdir(worktree_base, "p")
+    vim.notify("[chief-wiggum] Worktree base created at " .. worktree_base, vim.log.levels.INFO)
+  end
+
   vim.notify("[chief-wiggum] Vault initialized at " .. vault, vim.log.levels.INFO)
 end
 
