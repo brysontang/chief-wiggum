@@ -256,14 +256,28 @@ local function update_task_worktree(task_path, worktree_path, branch_name)
   end
 end
 
+---Resolve agent name to full subagent reference
+---If name contains ":", use as-is (already namespaced)
+---Otherwise, prepend "chief-wiggum:" as default
+---@param name string Agent name from task file
+---@return string Full agent reference
+local function resolve_agent_name(name)
+  if name:find(":") then
+    return name -- Already namespaced (e.g., "my-plugin:custom-agent")
+  else
+    return "chief-wiggum:" .. name -- Default namespace
+  end
+end
+
 ---Build the prompt that tells Claude to spawn a subagent
 ---@param task table Task data
 ---@param stage_name string Stage to work on
 ---@param agent table Agent configuration
 ---@return string prompt
 local function build_subagent_prompt(task, stage_name, agent)
+  local agent_ref = resolve_agent_name(agent.name)
   return string.format([[
-Spawn the chief-wiggum:%s subagent to complete the %s stage.
+Spawn the %s subagent to complete the %s stage.
 
 Task file: %s
 
@@ -288,7 +302,7 @@ When the subagent reports being stuck:
 
 IMPORTANT: Use these exact markers. They are used for automated status detection.
 The stage marker MUST be moved before outputting DONE so the next dispatch knows which stage to run.
-]], agent.name, stage_name, task.path)
+]], agent_ref, stage_name, task.path)
 end
 
 ---Substitute named placeholders in a template string

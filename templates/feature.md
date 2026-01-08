@@ -25,6 +25,14 @@ Branch:
 
 ## Stages
 
+<!-- Agent options:
+     - Built-in: recon, implement, test, review, merge
+     - Custom: my-plugin:custom-agent (any Claude Code agent)
+     - Manual: human (requires manual advancement)
+
+     Verification: customize per project (npm test, pytest, go test, etc.)
+-->
+
 ### RESEARCH ← ACTIVE
 Agent: recon
 - [ ] Investigate existing patterns
