@@ -10,6 +10,9 @@ require("chief-wiggum").setup({
   -- Maximum concurrent agents
   max_agents = 5,
 
+  -- Maximum turns per dispatch (cost control)
+  max_turns = 20,
+
   -- Auto-reload buffers on status change
   auto_reload = true,
 

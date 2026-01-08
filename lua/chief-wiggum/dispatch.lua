@@ -277,6 +277,26 @@ Begin now.
 ]], task.path, agent.name, stage_name)
 end
 
+---Build agent JSON for --agents flag
+---@param agent table Agent config
+---@return string json
+local function build_agent_json(agent)
+  local agent_def = {
+    [agent.name] = {
+      description = agent.description or ("Agent for " .. agent.name .. " tasks"),
+      prompt = "You are a " .. agent.name .. " agent. Follow the chief-wiggum task execution protocol.",
+      tools = { "Read", "Edit", "Write", "Bash", "Grep", "Glob" },
+    }
+  }
+
+  -- Add model if specified
+  if agent.model then
+    agent_def[agent.name].model = agent.model
+  end
+
+  return vim.json.encode(agent_def)
+end
+
 ---Build dispatch command with proper escaping
 ---@param task table Task data
 ---@param stage_name string Stage name
@@ -303,13 +323,21 @@ local function build_dispatch_command(task, stage_name, agent, config, worktree_
     return nil, "tmux not found. Install tmux or dispatch manually."
   end
 
+  -- Build agent JSON for subagent definition
+  local agent_json = build_agent_json(agent)
+
+  -- Max turns for cost control
+  local max_turns = config.max_turns or 20
+
   -- Build command with proper shell escaping
   -- Note: values inside the inner command need individual escaping for paths with spaces
   local inner_cmd = string.format(
-    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude %s",
+    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude --agents %s --max-turns %d %s",
     vim.fn.shellescape(worktree_path),
     vim.fn.shellescape(task.id),
     vim.fn.shellescape(config.vault_path),
+    vim.fn.shellescape(agent_json),
+    max_turns,
     vim.fn.shellescape(prompt)
   )
 

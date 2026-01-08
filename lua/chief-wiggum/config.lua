@@ -3,6 +3,7 @@
 ---@field status_dir string Subdirectory for status files
 ---@field templates_dir string Subdirectory for templates
 ---@field max_agents number Maximum concurrent agents
+---@field max_turns number Maximum turns per dispatch (cost control)
 ---@field auto_reload boolean Auto-reload files when status changes
 ---@field notify_on_complete boolean Show notification when task completes
 ---@field stuck_threshold number Iterations with same error before marking stuck
@@ -28,6 +29,9 @@ M.defaults = {
 
   -- Maximum number of concurrent agents
   max_agents = 5,
+
+  -- Maximum turns per dispatch (cost control)
+  max_turns = 20,
 
   -- Automatically reload buffers when status files change
   auto_reload = true,
