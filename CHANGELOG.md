@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/brysontang/chief-wiggum/compare/v0.3.0...v0.4.0) (2026-01-08)
+
+
+### Features
+
+* add validate_loop for full ralph-wiggum cycle ([d25e63a](https://github.com/brysontang/chief-wiggum/commit/d25e63a3f325589c0c9dce9925419dc7f44484e3))
+
 ## [0.3.0](https://github.com/brysontang/chief-wiggum/compare/v0.2.0...v0.3.0) (2026-01-08)
 
 
