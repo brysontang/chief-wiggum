@@ -1,0 +1,11 @@
+# Test/local vault data
+.wiggum/
+.chief-wiggum/
+
+# Neovim
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
