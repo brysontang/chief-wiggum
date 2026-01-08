@@ -105,25 +105,22 @@ use {
 
 ### Claude Code
 
-Add to your project's `.claude/settings.json`:
-
-```json
-{
-  "permissions": {
-    "allow": ["chief-wiggum:*"]
-  },
-  "hooks": {
-    "PostToolUse": [...],
-    "Stop": [...]
-  }
-}
-```
-
-Or install as a plugin:
-
+**Option 1: Install from GitHub**
 ```bash
-claude /install brysontang/chief-wiggum
+# Add marketplace
+/plugin marketplace add brysontang/chief-wiggum
+
+# Install
+/plugin install chief-wiggum@brysontang-chief-wiggum
 ```
+
+**Option 2: Install locally**
+```bash
+git clone https://github.com/brysontang/chief-wiggum.git ~/.chief-wiggum-plugin
+/plugin install ~/.chief-wiggum-plugin
+```
+
+Hooks are automatically registered when the plugin is installed.
 
 ## Quick Start
 
