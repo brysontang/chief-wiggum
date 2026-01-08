@@ -6,6 +6,7 @@
     "name": "Bryson Tang"
   },
   "repository": "https://github.com/brysontang/chief-wiggum",
+  "homepage": "https://github.com/brysontang/chief-wiggum",
   "keywords": [
     "orchestration",
     "autonomous",
@@ -15,5 +16,13 @@
     "convergence",
     "verification"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "commands": "./commands",
+  "agents": "./agents",
+  "hooks": "./hooks/hooks.json",
+  "skills": [
+    "./skills/context-sync",
+    "./skills/task-convergence",
+    "./skills/task-execution"
+  ]
 }

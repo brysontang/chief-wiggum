@@ -326,18 +326,17 @@ local function build_dispatch_command(task, stage_name, agent, config, worktree_
   local max_turns = config.max_turns or 20
 
   -- Build Claude command with:
-  -- -p: non-interactive mode (run and exit)
-  -- --output-format json: structured output for parsing
   -- --max-turns: cost control
   -- Environment vars for hooks
+  -- Interactive mode so user can observe Claude working
   local inner_cmd = string.format(
-    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s CHIEF_WIGGUM_STUCK_THRESHOLD=%d claude -p %s --output-format json --max-turns %d",
+    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s CHIEF_WIGGUM_STUCK_THRESHOLD=%d claude --max-turns %d %s",
     vim.fn.shellescape(worktree_path),
     vim.fn.shellescape(task.id),
     vim.fn.shellescape(config.vault_path),
     config.stuck_threshold or 3,
-    vim.fn.shellescape(prompt),
-    max_turns
+    max_turns,
+    vim.fn.shellescape(prompt)
   )
 
   local cmd = string.format(
