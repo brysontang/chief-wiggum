@@ -1,4 +1,4 @@
-# Chief Wiggum
+# 🍩 Chief Wiggum
 
 > "Bake 'em away, toys."
 
@@ -122,12 +122,9 @@ Verification: `npm test`
 
 ## Philosophy
 
-Inspired by [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/):
+Chief Wiggum doesn't do the work. It watches from the donut shop 🍩, dispatches the right agent, and takes credit when things work out.
 
-1. **Verification commands are everything** - Tasks need a command that succeeds (exit 0)
-2. **Failures are data** - Each iteration provides feedback
-3. **State lives in files** - Every dispatch is fresh; the filesystem is memory
-4. **Orchestration, not ownership** - Chief Wiggum wires agents together; it doesn't own them
+Based on [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/): verification-driven AI loops where the only thing that matters is whether the command passes.
 
 ## Requirements
 
