@@ -335,15 +335,18 @@ local function build_dispatch_command(task, stage_name, agent, config, worktree_
 
   -- Build Claude command with:
   -- --max-turns: cost control
+  -- --allowedTools: auto-approve common tools
   -- Environment vars for hooks
   -- Interactive mode so user can observe Claude working
+  local allowed_tools = config.allowed_tools or "Edit,Write,Read,Bash,Glob,Grep"
   local inner_cmd = string.format(
-    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s CHIEF_WIGGUM_STUCK_THRESHOLD=%d claude --max-turns %d %s",
+    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s CHIEF_WIGGUM_STUCK_THRESHOLD=%d claude --max-turns %d --allowedTools %s %s",
     vim.fn.shellescape(worktree_path),
     vim.fn.shellescape(task.id),
     vim.fn.shellescape(config.vault_path),
     config.stuck_threshold or 3,
     max_turns,
+    vim.fn.shellescape(allowed_tools),
     vim.fn.shellescape(prompt)
   )
 
