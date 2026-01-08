@@ -24,7 +24,7 @@ local function parse_frontmatter(content)
 
   -- Simple YAML parsing for key: value pairs
   for line in fm_text:gmatch("[^\n]+") do
-    local key, value = line:match("^(%w+):%s*(.+)$")
+    local key, value = line:match("^([%w_-]+):%s*(.+)$")
     if key and value then
       frontmatter[key] = value
     end
@@ -67,17 +67,17 @@ local function parse_agent_file(agent_name, config)
       local content = file:read("*a")
       file:close()
 
-      local frontmatter = parse_frontmatter(content)
+      local fm = parse_frontmatter(content)
 
       -- Frontmatter overrides defaults (but config overrides frontmatter)
-      if frontmatter.tool and not (config.agent_tool and config.agent_tool[agent_name]) then
-        agent.tool = frontmatter.tool
+      if fm.tool and not (config.agent_tool and config.agent_tool[agent_name]) then
+        agent.tool = fm.tool
       end
-      if frontmatter.model then
-        agent.model = frontmatter.model
+      if fm.model then
+        agent.model = fm.model
       end
-      if frontmatter.description then
-        agent.description = frontmatter.description
+      if fm.description then
+        agent.description = fm.description
       end
     end
   end
@@ -85,12 +85,13 @@ local function parse_agent_file(agent_name, config)
   return agent
 end
 
----Extract task ID from file path
+---Extract task ID from file path (sanitized for shell safety)
 ---@param file_path string
 ---@return string
 local function get_task_id(file_path)
   local filename = vim.fn.fnamemodify(file_path, ":t:r")
-  return filename:gsub("[^%w%-_]", "-")
+  -- Only allow alphanumeric, dash, underscore
+  return filename:gsub("[^%w%-_]", "-"):gsub("%-+", "-")
 end
 
 ---Read and validate a task file
@@ -106,15 +107,32 @@ local function read_task_file(file_path)
   local content = file:read("*a")
   file:close()
 
+  -- Parse worktree path (only capture content on the same line)
+  -- Use [ \t]* instead of %s* because %s matches newlines in Lua
+  local raw_path = content:match("Path:[ \t]*([^\n]*)")
+  if raw_path then
+    raw_path = raw_path:match("^[ \t]*(.-)[ \t]*$") -- trim spaces/tabs only
+    if raw_path == "" then raw_path = nil end
+  end
+
+  local raw_branch = content:match("Branch:[ \t]*([^\n]*)")
+  if raw_branch then
+    raw_branch = raw_branch:match("^[ \t]*(.-)[ \t]*$")
+    if raw_branch == "" then raw_branch = nil end
+  end
+
   local task = {
     path = file_path,
     id = get_task_id(file_path),
     name = content:match("^#%s*(.-)%s*\n") or get_task_id(file_path),
     objective = content:match("## Objective%s*\n.-\n(.-)%s*\n\n"),
     max_iterations = tonumber(content:match("Max Iterations%s*\n(%d+)")) or 20,
-    worktree_path = content:match("Path:%s*(.-)%s*\n"),
-    worktree_branch = content:match("Branch:%s*(.-)%s*\n"),
+    worktree_path = raw_path,
+    worktree_branch = raw_branch,
   }
+
+  -- Sanitize task name for shell safety
+  task.name = task.name:gsub("[^%w%s%-_]", ""):sub(1, 50)
 
   return task, nil
 end
@@ -126,17 +144,19 @@ local function count_running_agents(config)
   local status_path = config.vault_path .. "/" .. config.status_dir
   local count = 0
 
-  if not vim.uv then
+  -- Use vim.uv if available (0.10+), fall back to vim.loop (0.9+)
+  local uv = vim.uv or vim.loop
+  if not uv then
     return 0
   end
 
-  local handle = vim.uv.fs_scandir(status_path)
+  local handle = uv.fs_scandir(status_path)
   if not handle then
     return 0
   end
 
   while true do
-    local name, type = vim.uv.fs_scandir_next(handle)
+    local name, type = uv.fs_scandir_next(handle)
     if not name then
       break
     end
@@ -230,49 +250,76 @@ local function update_task_worktree(task_path, worktree_path, branch_name)
   end
 end
 
----Write prompt file for the agent
----@param config ChiefWiggumConfig
----@param task table
----@param stage_name string
----@param agent table
----@return string prompt_path
-local function write_prompt_file(config, task, stage_name, agent)
-  local prompt_dir = config.vault_path .. "/prompts"
-  vim.fn.mkdir(prompt_dir, "p")
-
-  local prompt_path = prompt_dir .. "/" .. task.id .. "-" .. stage_name .. ".md"
-
-  local prompt = string.format(
-    [[
-# Task: %s
-# Stage: %s
-# Agent: %s (%s)
-
+---Build the initial prompt for Claude
+---@param task table Task data
+---@param stage_name string Stage to work on
+---@param agent table Agent configuration
+---@return string prompt
+local function build_initial_prompt(task, stage_name, agent)
+  return string.format([[
 Read the task file at: %s
 
-Focus on the %s stage. The verification command for this stage is in the task file.
+You are the %s agent working on the %s stage.
 
-Remember: You have a fresh context. Read the ## Log section to see what previous iterations did.
-State lives in files, not in conversation history.
+Instructions:
+1. Read the task file completely
+2. Find the current active stage (marked with ← ACTIVE)
+3. Read the verification command for this stage
+4. Do the work required
+5. Run the verification command
+6. If it passes, output: DONE
+7. If stuck after 3 similar failures, output: STUCK: <reason>
 
-When done, output: DONE
-If stuck, output: STUCK: <reason>
-]],
-    task.name,
-    stage_name,
-    agent.name,
-    agent.tool,
-    task.path,
-    stage_name
-  )
+State lives in files. Read the ## Log section to see what previous iterations did.
+Append your progress to the ## Log section.
 
-  local f = io.open(prompt_path, "w")
-  if f then
-    f:write(prompt)
-    f:close()
+Begin now.
+]], task.path, agent.name, stage_name)
+end
+
+---Build dispatch command with proper escaping
+---@param task table Task data
+---@param stage_name string Stage name
+---@param agent table Agent config
+---@param config ChiefWiggumConfig
+---@param worktree_path string Working directory
+---@return string|nil cmd Command to execute
+---@return string|nil err Error message
+local function build_dispatch_command(task, stage_name, agent, config, worktree_path)
+  local tool = agent.tool or "claude"
+
+  -- Build the initial prompt
+  local prompt = build_initial_prompt(task, stage_name, agent)
+
+  -- For now, only support claude directly
+  -- Other tools need different invocation patterns
+  if tool ~= "claude" then
+    return nil, string.format("Tool '%s' not yet supported. Use 'claude' or invoke manually.", tool)
   end
 
-  return prompt_path
+  -- Check if tmux is available
+  local tmux_check = vim.fn.system("command -v tmux")
+  if vim.v.shell_error ~= 0 then
+    return nil, "tmux not found. Install tmux or dispatch manually."
+  end
+
+  -- Build command with proper shell escaping
+  -- Note: values inside the inner command need individual escaping for paths with spaces
+  local inner_cmd = string.format(
+    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude %s",
+    vim.fn.shellescape(worktree_path),
+    vim.fn.shellescape(task.id),
+    vim.fn.shellescape(config.vault_path),
+    vim.fn.shellescape(prompt)
+  )
+
+  local cmd = string.format(
+    "tmux new-window -n %s %s",
+    vim.fn.shellescape(task.name:sub(1, 20)), -- tmux window name (truncated)
+    vim.fn.shellescape(inner_cmd)
+  )
+
+  return cmd, nil
 end
 
 ---Dispatch a stage to the appropriate agent
@@ -290,12 +337,14 @@ function M.dispatch_stage(task_file, stage_name, agent_name, config)
 
   -- Get stage info if not specified
   if not stage_name then
-    local stages = require("chief-wiggum.stages")
-    local current = stages.current_stage()
-    if current then
-      stage_name = current.name
-      if not agent_name then
-        agent_name = current.agent
+    local ok, stages = pcall(require, "chief-wiggum.stages")
+    if ok then
+      local current = stages.current_stage()
+      if current then
+        stage_name = current.name
+        if not agent_name then
+          agent_name = current.agent
+        end
       end
     end
   end
@@ -319,16 +368,6 @@ function M.dispatch_stage(task_file, stage_name, agent_name, config)
   -- Parse agent configuration
   local agent = parse_agent_file(agent_name, config)
 
-  -- Get dispatch command for this tool
-  local dispatch_template = config.dispatch_commands[agent.tool]
-  if not dispatch_template then
-    vim.notify(
-      string.format("[chief-wiggum] Unknown tool '%s' for agent '%s'", agent.tool, agent_name),
-      vim.log.levels.ERROR
-    )
-    return
-  end
-
   -- Check agent limit
   local running = count_running_agents(config)
   if running >= config.max_agents then
@@ -346,54 +385,58 @@ function M.dispatch_stage(task_file, stage_name, agent_name, config)
   -- Create worktree if needed
   local worktree_path = task.worktree_path
   if config.auto_create_worktree and (not worktree_path or worktree_path == "") then
-    local worktree = require("chief-wiggum.worktree")
-    local wt_path, wt_err = worktree.create(task.id)
-    if wt_err then
-      vim.notify("[chief-wiggum] Worktree creation failed: " .. wt_err, vim.log.levels.WARN)
-      -- Continue without worktree
-      worktree_path = vim.fn.getcwd()
+    local ok, worktree = pcall(require, "chief-wiggum.worktree")
+    if ok then
+      local wt_path, wt_err = worktree.create(task.id)
+      if wt_err then
+        vim.notify("[chief-wiggum] Worktree creation failed: " .. wt_err, vim.log.levels.WARN)
+        -- Continue without worktree
+        worktree_path = vim.fn.getcwd()
+      else
+        worktree_path = wt_path
+        local branch = "feature/" .. task.id
+        update_task_worktree(task_file, worktree_path, branch)
+        task.worktree_path = worktree_path
+      end
     else
-      worktree_path = wt_path
-      local branch = "feature/" .. task.id
-      update_task_worktree(task_file, worktree_path, branch)
-      task.worktree_path = worktree_path
+      worktree_path = vim.fn.getcwd()
     end
   end
 
   worktree_path = worktree_path or vim.fn.getcwd()
 
-  -- Write prompt file
-  local prompt_path = write_prompt_file(config, task, stage_name, agent)
-
   -- Initialize status
   init_status_file(config, task, stage_name, agent_name)
 
   -- Build dispatch command
-  -- The template expects: task_name, worktree_path, task_id, vault_path, prompt_path, model
-  local cmd = string.format(
-    dispatch_template,
-    task.name .. ":" .. stage_name,
-    worktree_path,
-    task.id,
-    config.vault_path,
-    prompt_path,
-    agent.model or ""
-  )
+  local cmd, cmd_err = build_dispatch_command(task, stage_name, agent, config, worktree_path)
+  if not cmd then
+    vim.notify("[chief-wiggum] " .. cmd_err, vim.log.levels.ERROR)
+    return
+  end
+
+  -- DEBUG: Print the command
+  print("DEBUG CMD:", cmd)
 
   -- Execute dispatch
-  vim.fn.jobstart(cmd, {
+  local job_id = vim.fn.jobstart(cmd, {
     detach = true,
     on_exit = function(_, code)
       if code ~= 0 and code ~= 2 then
         vim.schedule(function()
           vim.notify(
-            string.format("[chief-wiggum] Dispatch failed (code %d). Check tmux.", code),
-            vim.log.levels.ERROR
+            string.format("[chief-wiggum] Dispatch may have failed (code %d). Check tmux.", code),
+            vim.log.levels.WARN
           )
         end)
       end
     end,
   })
+
+  if job_id <= 0 then
+    vim.notify("[chief-wiggum] Failed to start dispatch job. Is tmux installed?", vim.log.levels.ERROR)
+    return
+  end
 
   vim.notify(
     string.format(
@@ -421,9 +464,12 @@ function M.dispatch_current()
   end
 
   -- Get current stage info from buffer
-  local stages = require("chief-wiggum.stages")
-  local stage = stages.current_stage()
-  local agent = stages.current_agent()
+  local ok, stages = pcall(require, "chief-wiggum.stages")
+  local stage, agent = nil, nil
+  if ok then
+    stage = stages.current_stage()
+    agent = stages.current_agent()
+  end
 
   M.dispatch_stage(file, stage and stage.name, agent, config)
 end
@@ -451,30 +497,58 @@ function M.recon(config, scope)
   local task_id = "recon-" .. os.date("%Y%m%d-%H%M%S")
   local task = {
     id = task_id,
-    name = "Recon: " .. scope,
-    path = config.vault_path .. "/tasks/" .. task_id .. ".md",
+    name = "Recon " .. scope:sub(1, 20),
+    path = config.vault_path .. "/tasks/RECON.md",
     max_iterations = 1,
   }
 
   init_status_file(config, task, "RESEARCH", "recon")
 
-  local agent = parse_agent_file("recon", config)
-  local dispatch_template = config.dispatch_commands[agent.tool]
-
-  if dispatch_template then
-    local cmd = string.format(
-      dispatch_template,
-      task.name,
-      vim.fn.getcwd(),
-      task.id,
-      config.vault_path,
-      "",
-      ""
-    )
-
-    vim.fn.jobstart(cmd, { detach = true })
-    vim.notify("[chief-wiggum] Started recon scan on '" .. scope .. "'", vim.log.levels.INFO)
+  -- Check tmux
+  local tmux_check = vim.fn.system("command -v tmux")
+  if vim.v.shell_error ~= 0 then
+    vim.notify("[chief-wiggum] tmux not found", vim.log.levels.ERROR)
+    return
   end
+
+  local prompt = string.format([[
+Scan the codebase at %s and identify actionable improvements.
+
+Output format for each finding:
+- [ ] [category:confidence:effort] Description — `path/to/file`
+
+Categories: bug, security, performance, test, debt, refactor
+Confidence: high, medium, low
+Effort: small, medium, large
+
+Only report findings that can have verification commands.
+Write findings to: %s/tasks/RECON.md
+
+Begin scanning now.
+]], scope, config.vault_path)
+
+  local inner_cmd = string.format(
+    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude %s",
+    vim.fn.shellescape(vim.fn.getcwd()),
+    vim.fn.shellescape(task_id),
+    vim.fn.shellescape(config.vault_path),
+    vim.fn.shellescape(prompt)
+  )
+
+  local cmd = string.format(
+    "tmux new-window -n %s %s",
+    vim.fn.shellescape("recon"),
+    vim.fn.shellescape(inner_cmd)
+  )
+
+  local job_id = vim.fn.jobstart(cmd, { detach = true })
+
+  if job_id <= 0 then
+    vim.notify("[chief-wiggum] Failed to start recon", vim.log.levels.ERROR)
+    return
+  end
+
+  vim.notify("[chief-wiggum] Started recon scan on '" .. scope .. "'", vim.log.levels.INFO)
 end
 
 return M
