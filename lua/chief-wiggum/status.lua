@@ -3,6 +3,9 @@
 
 local M = {}
 
+-- Use vim.uv (0.10+) or vim.loop (0.9+)
+local uv = vim.uv or vim.loop
+
 ---@type number|nil Buffer handle for status window
 local status_buf = nil
 
@@ -179,13 +182,17 @@ local function read_all_statuses(config)
   local status_path = config.vault_path .. "/" .. config.status_dir
   local statuses = {}
 
-  local handle = vim.uv and vim.uv.fs_scandir(status_path)
+  if not uv then
+    return statuses
+  end
+
+  local handle = uv.fs_scandir(status_path)
   if not handle then
     return statuses
   end
 
   while true do
-    local name, type = vim.uv.fs_scandir_next(handle)
+    local name, type = uv.fs_scandir_next(handle)
     if not name then
       break
     end
@@ -392,7 +399,8 @@ function M.show(config)
   end, opts)
 
   -- Auto-refresh every 2 seconds while open
-  local timer = vim.uv.new_timer()
+  if not uv then return end
+  local timer = uv.new_timer()
   timer:start(
     2000,
     2000,

@@ -1,8 +1,11 @@
 ---File system watcher for status directory changes
----Uses vim.uv (libuv bindings) to watch for file changes
+---Uses vim.uv/vim.loop (libuv bindings) to watch for file changes
 ---and trigger buffer reloads
 
 local M = {}
+
+-- Use vim.uv (0.10+) or vim.loop (0.9+)
+local uv = vim.uv or vim.loop
 
 ---@type uv_fs_event_t|nil
 local watcher = nil
@@ -16,10 +19,10 @@ local DEBOUNCE_MS = 100
 ---Start watching the status directory
 ---@param config ChiefWiggumConfig
 function M.setup(config)
-  -- Ensure we have vim.uv (Neovim 0.10+)
-  if not vim.uv then
+  -- Ensure we have libuv bindings
+  if not uv then
     vim.notify(
-      "[chief-wiggum] vim.uv not available. File watching disabled. Requires Neovim 0.10+",
+      "[chief-wiggum] vim.uv/vim.loop not available. File watching disabled.",
       vim.log.levels.WARN
     )
     return
@@ -42,7 +45,7 @@ function M.setup(config)
   M.stop()
 
   -- Create new watcher
-  watcher = vim.uv.new_fs_event()
+  watcher = uv.new_fs_event()
   if not watcher then
     vim.notify("[chief-wiggum] Failed to create file watcher", vim.log.levels.ERROR)
     return

@@ -33,7 +33,8 @@ function M.parse_stages(bufnr)
         table.insert(stages, current_stage)
       end
 
-      local name = line:match("^### (%u+)")
+      -- Allow uppercase stage names with underscores (e.g., RESEARCH, CODE_REVIEW)
+      local name = line:match("^### ([%u%d_]+)")
       local status = "pending"
 
       if line:match("←") or line:match("ACTIVE") then
@@ -54,8 +55,8 @@ function M.parse_stages(bufnr)
       verification_lines = {}
 
     elseif current_stage then
-      -- Agent line: Agent: agentname
-      local agent = line:match("^Agent:%s*(%w+)")
+      -- Agent line: Agent: agentname (allow hyphens like security-review)
+      local agent = line:match("^Agent:%s*([%w%-_]+)")
       if agent then
         current_stage.agent = agent
       end
