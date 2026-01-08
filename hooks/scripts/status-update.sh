@@ -24,7 +24,7 @@ EVENT_TYPE="${1:-unknown}"
 TASK_ID="${CHIEF_WIGGUM_TASK_ID:-}"
 VAULT="${CHIEF_WIGGUM_VAULT:-$HOME/.chief-wiggum}"
 STATUS_DIR="$VAULT/status"
-STUCK_THRESHOLD=3
+STUCK_THRESHOLD="${CHIEF_WIGGUM_STUCK_THRESHOLD:-3}"
 
 # Check for jq availability
 if command -v jq &> /dev/null; then
@@ -193,7 +193,7 @@ atomic_write() {
   local content="$1"
   local dest="$2"
   local temp="$3"
-  echo "$content" > "$temp"
+  printf '%s\n' "$content" > "$temp"
   mv -f "$temp" "$dest"
 }
 

@@ -480,9 +480,6 @@ function M.dispatch_stage(task_file, stage_name, agent_name, config)
     return
   end
 
-  -- DEBUG: Print the command
-  print("DEBUG CMD:", cmd)
-
   -- Execute dispatch
   local job_id = vim.fn.jobstart(cmd, {
     detach = true,

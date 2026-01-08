@@ -42,7 +42,7 @@ Currently running agents.
 
 1. `:ChiefWiggumNew <name>` or copy [[templates/feature]]
 2. Write a clear **Objective** (one sentence, done state)
-3. Write a **Verification Command** that outputs `DONE` on success
+3. Write a **Verification Command** that exits 0 on success
 4. Add **Constraints** (what NOT to do)
 5. Write the **Prompt** Claude will receive
 6. Dispatch with `<leader>wd` on the file
@@ -51,13 +51,13 @@ Currently running agents.
 
 ```bash
 # Specific test
-npm test -- --grep "rate limiter" && echo "DONE"
+npm test -- --grep "rate limiter"
 
 # Multiple checks
-npm run lint && npm test && npm run build && echo "DONE"
+npm run lint && npm test && npm run build
 
 # Type checking
-npx tsc --noEmit && echo "DONE"
+npx tsc --noEmit
 ```
 
 ### Tasks That Don't Work

@@ -66,19 +66,18 @@ M.defaults = {
 
   -- Dispatch command templates for each tool
   -- Named placeholders: {task_name}, {worktree}, {task_id}, {vault}, {task_file}, {model}, {prompt}
-  -- Note: Only 'claude' is fully supported. Other tools are templates for manual customization.
+  --
+  -- IMPORTANT: Only 'claude' is fully supported with proper escaping and flags.
+  -- Other templates are ILLUSTRATIVE EXAMPLES ONLY - they require manual adjustment
+  -- for your specific tool and won't work out of the box due to shell quoting complexity.
   dispatch_commands = {
     -- Claude Code (default, fully supported)
+    -- Note: Claude dispatch is handled specially with --agents and --max-turns flags
     claude = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'",
 
-    -- Aider (community template, adjust as needed)
-    aider = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} aider --message {prompt}'",
-
-    -- OpenCode (community template)
-    opencode = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} opencode'",
-
-    -- Generic (customize for your tool)
-    generic = "tmux new-window -n {task_name} 'cd {worktree} && echo {prompt} | your-ai-tool'",
+    -- ILLUSTRATIVE EXAMPLES - customize for your setup:
+    -- aider = "tmux new-window -n 'task' 'cd /path && aider --message \"your prompt\"'",
+    -- opencode = "tmux new-window -n 'task' 'cd /path && opencode'",
   },
 
   -- Override which tool to use for specific agents (by agent name)

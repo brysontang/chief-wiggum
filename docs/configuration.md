@@ -46,11 +46,11 @@ require("chief-wiggum").setup({
     -- review = "aider",
   },
 
-  -- Dispatch command templates (named placeholders)
-  -- Available: {task_name}, {worktree}, {task_id}, {vault}, {task_file}, {model}, {prompt}
+  -- Dispatch command templates
+  -- Only 'claude' is fully supported. Other tools require manual configuration.
   dispatch_commands = {
-    claude = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'",
-    aider = "tmux new-window -n {task_name} 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} aider --message {prompt}'",
+    claude = "...", -- handled specially with --agents and --max-turns
+    -- Add custom templates for other tools as needed
   },
 
   -- Keymaps (set to false to disable)
@@ -68,31 +68,7 @@ require("chief-wiggum").setup({
 
 ## Terminal Alternatives
 
-Note: Only `claude` tool is fully supported with automatic `--agents` and `--max-turns` flags. These templates show the basic structure for other terminals.
-
-### Kitty
-
-```lua
-dispatch_commands = {
-  claude = "kitty @ new-window --title {task_name} bash -c 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'"
-}
-```
-
-### iTerm2
-
-```lua
-dispatch_commands = {
-  claude = "osascript -e 'tell app \"iTerm\" to create window with default profile command \"cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude\"'"
-}
-```
-
-### Wezterm
-
-```lua
-dispatch_commands = {
-  claude = "wezterm cli spawn --new-window -- bash -c 'cd {worktree} && CHIEF_WIGGUM_TASK_ID={task_id} CHIEF_WIGGUM_VAULT={vault} claude {prompt}'"
-}
-```
+Currently only tmux is supported. The dispatch logic is hardcoded for tmux. PRs welcome for other terminals.
 
 ## Per-Project Configuration
 

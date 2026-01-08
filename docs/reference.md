@@ -26,7 +26,7 @@
 | Status | Meaning |
 |--------|---------|
 | `running` | Agent is actively working |
-| `completed` | DONE was output, verification passed |
+| `completed` | Completion marker output, verification passed |
 | `stuck` | Same error 3x or max iterations reached |
 | `needs_input` | Permission prompt or question |
 | `pending` | Queued but not started |

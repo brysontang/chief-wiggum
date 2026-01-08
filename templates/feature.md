@@ -43,21 +43,21 @@ Agent: human
 Agent: implement
 - [ ] Implementation tasks here
 - [ ] Update MODULE.md if new patterns
-Verification: `npm test && echo DONE`
+Verification: `npm test`
 
 ### TEST
 Agent: test
 - [ ] Write unit tests
 - [ ] Write integration tests
 - [ ] Verify coverage threshold
-Verification: `npm run test:coverage -- --threshold 80 && echo DONE`
+Verification: `npm run test:coverage -- --threshold 80`
 
 ### REVIEW
 Agent: review
 - [ ] Security review
 - [ ] Pattern compliance
 - [ ] Human approval
-Verification: `echo "Human approved" && echo DONE`
+Verification: `echo "Human approved"`
 
 ### MERGE
 Agent: merge
@@ -65,7 +65,7 @@ Agent: merge
 - [ ] Resolve conflicts
 - [ ] Final verification
 - [ ] Squash merge
-Verification: `npm run lint && npm test && npm run build && echo READY_TO_MERGE`
+Verification: `npm run lint && npm test && npm run build`
 
 ## Decisions Made
 

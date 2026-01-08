@@ -215,8 +215,8 @@ function M.list_worktrees()
     local branch = wt.branch or "detached"
     local status_parts = {}
 
-    -- Check if this is a chief-wiggum managed worktree
-    if task_id and wt.path:match(config.worktree_base) then
+    -- Check if this is a chief-wiggum managed worktree (plain string match, not pattern)
+    if task_id and wt.path:find(config.worktree_base, 1, true) then
       -- Check dirty status
       local is_dirty = wt_module.is_dirty(task_id)
       if is_dirty then

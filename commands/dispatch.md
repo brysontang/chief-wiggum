@@ -60,8 +60,8 @@ Read the state. Do the work. Update the state.
    - Update MODULE.md if you introduced new patterns
 
 5. **Signal completion**
-   - `DONE` when verification passes
-   - `STUCK: <reason>` if blocked after 3 similar attempts
+   - `###CHIEF_WIGGUM_DONE###` when verification passes
+   - `###CHIEF_WIGGUM_STUCK###` followed by reason if blocked after 3 similar attempts
 
 ---
 
@@ -96,10 +96,10 @@ Each stage has its own verification command. Find it in the stage section:
 ### IMPLEMENT
 Agent: implement
 - [ ] Implementation tasks
-Verification: `npm test -- --grep "rate limit" && echo DONE`
+Verification: `npm test -- --grep "rate limit"`
 ```
 
-Run this command. If it outputs DONE, you're done with the stage.
+Run this command. If it exits with code 0, verification passed.
 
 ---
 
@@ -107,13 +107,14 @@ Run this command. If it outputs DONE, you're done with the stage.
 
 ### Stage Complete
 ```
-DONE
+###CHIEF_WIGGUM_DONE###
 ```
 The stage verification passed. The hook system will record this.
 
 ### Stuck
 ```
-STUCK: <brief description>
+###CHIEF_WIGGUM_STUCK###
+<brief description on next line>
 ```
 You tried 3+ times with similar failures. Need human input.
 
@@ -142,7 +143,7 @@ This IS the memory. Next agent reads this.
 
 ## Critical Rules
 
-- **DO NOT** output "DONE" until verification actually succeeds
+- **DO NOT** output `###CHIEF_WIGGUM_DONE###` until verification actually succeeds
 - **DO NOT** assume context from "previous conversations" - there are none
 - **DO** read the `## Log` to understand what happened before
 - **DO** write to `## Log` so next iteration knows what you did
