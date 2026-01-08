@@ -8,7 +8,7 @@ A vim-native command center for orchestrating autonomous Claude Code agents.
 
 ## Philosophy
 
-This builds on the [ralph-wiggum](https://github.com/brysontang/ralph-wiggum) autonomous loop pattern. The core insights:
+This builds on the [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/) autonomous loop pattern. The core insights:
 
 1. **Verification commands are everything** - A task isn't dispatchable unless completion can be verified by a command that outputs "DONE"
 2. **Failures are data** - Each iteration that doesn't complete provides directional feedback
@@ -706,7 +706,7 @@ Each finding can be converted into a dispatchable task.
 
 ## Integration with ralph-wiggum
 
-Chief Wiggum doesn't replace [ralph-wiggum](https://github.com/brysontang/ralph-wiggum), it orchestrates it. The Stop hook uses exit code 2 to trigger ralph-style continuation.
+Chief Wiggum doesn't replace [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/), it orchestrates it. The Stop hook uses exit code 2 to trigger ralph-style continuation.
 
 For simpler one-off loops, use ralph-wiggum directly. Use Chief Wiggum when you need:
 - Multiple parallel agents
