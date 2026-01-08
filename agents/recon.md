@@ -1,12 +1,11 @@
 ---
-name: recon-agent
+name: recon
 tool: claude
 description: Specialized agent for codebase analysis and improvement identification
 tools:
   - Glob
   - Grep
   - Read
-  - Write
 ---
 
 # Recon Agent

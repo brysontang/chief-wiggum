@@ -256,54 +256,31 @@ local function update_task_worktree(task_path, worktree_path, branch_name)
   end
 end
 
----Build the initial prompt for Claude
+---Build the prompt that tells Claude to spawn a subagent
 ---@param task table Task data
 ---@param stage_name string Stage to work on
 ---@param agent table Agent configuration
 ---@return string prompt
-local function build_initial_prompt(task, stage_name, agent)
+local function build_subagent_prompt(task, stage_name, agent)
   return string.format([[
-Read the task file at: %s
+Spawn the chief-wiggum:%s subagent to complete the %s stage.
 
-You are the %s agent working on the %s stage.
+Task file: %s
 
-Instructions:
+The subagent should:
 1. Read the task file completely
 2. Find the current active stage (marked with ← ACTIVE)
-3. Read the verification command for this stage
-4. Do the work required
-5. Run the verification command
-6. If verification passes, output exactly: ###CHIEF_WIGGUM_DONE###
-7. If stuck after 3 similar failures, output: ###CHIEF_WIGGUM_STUCK###
-   Then on the next line, briefly explain why you're stuck.
+3. Read the ## Log section to understand what previous iterations did
+4. Do the work required for this stage
+5. Run the verification command if one exists
+6. Append progress to the ## Log section
 
-IMPORTANT: Use the exact markers above. They are used for automated status detection.
+When the subagent reports completion, output exactly: ###CHIEF_WIGGUM_DONE###
+When the subagent reports being stuck, output exactly: ###CHIEF_WIGGUM_STUCK###
+Then on the next line, include the reason from the subagent.
 
-State lives in files. Read the ## Log section to see what previous iterations did.
-Append your progress to the ## Log section.
-
-Begin now.
-]], task.path, agent.name, stage_name)
-end
-
----Build agent JSON for --agents flag
----@param agent table Agent config
----@return string json
-local function build_agent_json(agent)
-  local agent_def = {
-    [agent.name] = {
-      description = agent.description or ("Agent for " .. agent.name .. " tasks"),
-      prompt = "You are a " .. agent.name .. " agent. Follow the chief-wiggum task execution protocol.",
-      tools = { "Read", "Edit", "Write", "Bash", "Grep", "Glob" },
-    }
-  }
-
-  -- Add model if specified
-  if agent.model then
-    agent_def[agent.name].model = agent.model
-  end
-
-  return vim.json.encode(agent_def)
+IMPORTANT: Use these exact markers. They are used for automated status detection.
+]], agent.name, stage_name, task.path)
 end
 
 ---Substitute named placeholders in a template string
@@ -331,59 +308,44 @@ end
 local function build_dispatch_command(task, stage_name, agent, config, worktree_path)
   local tool = agent.tool or "claude"
 
-  -- Build the initial prompt
-  local prompt = build_initial_prompt(task, stage_name, agent)
-
   -- Check if tmux is available
   local tmux_check = vim.fn.system("command -v tmux")
   if vim.v.shell_error ~= 0 then
     return nil, "tmux not found. Install tmux or dispatch manually."
   end
 
-  -- Get template for this tool
-  local template = config.dispatch_commands[tool]
-  if not template then
-    return nil, string.format("No dispatch template for tool '%s'. Add one to dispatch_commands config.", tool)
+  -- Only Claude is supported
+  if tool ~= "claude" then
+    return nil, string.format("Tool '%s' not supported. Only 'claude' is supported.", tool)
   end
 
-  -- For Claude, we add special flags (--agents, --max-turns)
-  -- Other tools use the template as-is
-  if tool == "claude" then
-    local agent_json = build_agent_json(agent)
-    local max_turns = config.max_turns or 20
+  -- Build the prompt that spawns the subagent
+  local prompt = build_subagent_prompt(task, stage_name, agent)
 
-    -- Build Claude-specific inner command
-    local inner_cmd = string.format(
-      "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s claude --agents %s --max-turns %d %s",
-      vim.fn.shellescape(worktree_path),
-      vim.fn.shellescape(task.id),
-      vim.fn.shellescape(config.vault_path),
-      vim.fn.shellescape(agent_json),
-      max_turns,
-      vim.fn.shellescape(prompt)
-    )
+  -- Max turns for cost control
+  local max_turns = config.max_turns or 20
 
-    local cmd = string.format(
-      "tmux new-window -n %s %s",
-      vim.fn.shellescape(task.name:sub(1, 20)),
-      vim.fn.shellescape(inner_cmd)
-    )
+  -- Build Claude command with:
+  -- -p: non-interactive mode (run and exit)
+  -- --output-format json: structured output for parsing
+  -- --max-turns: cost control
+  -- Environment vars for hooks
+  local inner_cmd = string.format(
+    "cd %s && CHIEF_WIGGUM_TASK_ID=%s CHIEF_WIGGUM_VAULT=%s CHIEF_WIGGUM_STUCK_THRESHOLD=%d claude -p %s --output-format json --max-turns %d",
+    vim.fn.shellescape(worktree_path),
+    vim.fn.shellescape(task.id),
+    vim.fn.shellescape(config.vault_path),
+    config.stuck_threshold or 3,
+    vim.fn.shellescape(prompt),
+    max_turns
+  )
 
-    return cmd, nil
-  end
+  local cmd = string.format(
+    "tmux new-window -n %s %s",
+    vim.fn.shellescape(task.name:sub(1, 20)),
+    vim.fn.shellescape(inner_cmd)
+  )
 
-  -- For other tools, use template substitution
-  local values = {
-    task_name = task.name:sub(1, 20),
-    worktree = worktree_path,
-    task_id = task.id,
-    vault = config.vault_path,
-    task_file = task.path,
-    model = agent.model or "",
-    prompt = prompt,
-  }
-
-  local cmd = substitute_template(template, values)
   return cmd, nil
 end
 
