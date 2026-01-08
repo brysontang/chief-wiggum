@@ -2,6 +2,8 @@
 
 > "Bake 'em away, toys."
 
+**This is experimental software in active development. Read the code before using. Things will break.**
+
 A vim-native command center for orchestrating autonomous Claude Code agents.
 
 **Chief Wiggum** works as both a **Neovim plugin** and a **Claude Code plugin**. Dispatch verifiable tasks to Claude, track progress through autonomous iteration, and manage multiple parallel agents from your editor.
@@ -10,7 +12,7 @@ A vim-native command center for orchestrating autonomous Claude Code agents.
 
 Inspired by [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/):
 
-1. **Verification commands are everything** - Tasks need a command that outputs "DONE"
+1. **Verification commands are everything** - Tasks need a command that succeeds (exit 0)
 2. **Failures are data** - Each iteration provides feedback
 3. **State lives in files** - Every dispatch is fresh; the filesystem is memory
 
