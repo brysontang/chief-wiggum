@@ -3,7 +3,8 @@
 ## Options
 
 <!-- Task-level settings -->
-auto_advance: false  <!-- Set to true for fully autonomous mode (skips human stages) -->
+auto_advance: false   <!-- Set to true for fully autonomous mode (skips human stages) -->
+validate_loop: false  <!-- Set to true to verify Objective at end, restart if not met -->
 
 ## Worktree
 

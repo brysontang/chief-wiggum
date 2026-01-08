@@ -167,4 +167,28 @@ With auto_advance enabled:
 - Continues until it hits a `human` stage or the task is complete
 - Use the `autonomous.md` template for a no-human-stages pipeline
 
-⚠️ **Warning**: This will run up your Claude bill. Use wisely.
+## Validation Loop
+
+The ultimate autonomous mode: `validate_loop: true`
+
+```markdown
+## Options
+
+auto_advance: true
+validate_loop: true  <!-- The ralph-wiggum loop -->
+```
+
+With validate_loop enabled:
+- After completing the final stage, re-reads the `## Objective`
+- Evaluates: does the implementation actually satisfy the spec?
+- If NO → moves `← ACTIVE` back to RESEARCH, restarts the pipeline
+- If YES → outputs DONE, task complete
+
+This is the full loop:
+```
+RESEARCH → IMPLEMENT → TEST → REVIEW → MERGE
+    ↑                                    │
+    └────── Objective not met? ──────────┘
+```
+
+⚠️ **Warning**: This will run up your Claude bill. A lot. Use wisely.

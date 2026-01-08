@@ -281,13 +281,17 @@ When the subagent reports completion:
 1. Update the task file to advance the stage marker:
    - Remove "← ACTIVE" from the current stage header
    - Add "← ACTIVE" to the next stage header
-2. Check if "auto_advance: true" is set in the ## Options section
-3. If auto_advance is true AND the next stage's agent is NOT "human":
-   - Spawn the next stage's agent immediately (continue the pipeline)
-   - Repeat until a human stage or the task is complete
-4. If auto_advance is false OR next stage is human:
-   - Output exactly: ###CHIEF_WIGGUM_DONE###
-   - Include a brief summary of what was accomplished
+2. Check the ## Options section for auto_advance and validate_loop settings
+3. If this was the FINAL stage (no next stage):
+   - If "validate_loop: true": Re-read the ## Objective section
+     - Evaluate: does the current implementation satisfy the objective?
+     - If NO: Move "← ACTIVE" back to RESEARCH, continue the pipeline
+     - If YES: Output ###CHIEF_WIGGUM_DONE### with summary
+   - If "validate_loop: false": Output ###CHIEF_WIGGUM_DONE### with summary
+4. If there IS a next stage:
+   - If "auto_advance: true" AND next stage's agent is NOT "human":
+     - Spawn the next stage's agent immediately (continue the pipeline)
+   - Otherwise: Output ###CHIEF_WIGGUM_DONE### with summary
 
 When the subagent reports being stuck:
 1. Output exactly: ###CHIEF_WIGGUM_STUCK###

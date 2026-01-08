@@ -3,7 +3,8 @@
 ## Options
 
 <!-- Task-level settings -->
-auto_advance: true  <!-- YOLO mode: runs until complete or stuck -->
+auto_advance: true    <!-- YOLO mode: runs until complete or stuck -->
+validate_loop: true   <!-- Re-check Objective at end, restart from RESEARCH if not met -->
 
 ## Worktree
 
