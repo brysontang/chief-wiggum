@@ -25,16 +25,16 @@ Branch:
 
 ## Stages
 
-<!-- Agent options:
-     - Built-in: recon, implement, test, review, merge
-     - Custom: my-plugin:custom-agent (any Claude Code agent)
-     - Manual: human (requires manual advancement)
+<!-- Agent format: plugin:agent-name (any Claude Code agent)
+     - chief-wiggum:recon, chief-wiggum:implement, etc.
+     - your-plugin:custom-agent
+     - human (manual checkpoint, no dispatch)
 
      Verification: customize per project (npm test, pytest, go test, etc.)
 -->
 
 ### RESEARCH ← ACTIVE
-Agent: recon
+Agent: chief-wiggum:recon
 - [ ] Investigate existing patterns
 - [ ] Check adjacent MODULE.md files
 - [ ] Note dependencies and dependents
@@ -48,27 +48,27 @@ Agent: human
 - [ ] Review research notes
 
 ### IMPLEMENT
-Agent: implement
+Agent: chief-wiggum:implement
 - [ ] Implementation tasks here
 - [ ] Update MODULE.md if new patterns
 Verification: `npm test`
 
 ### TEST
-Agent: test
+Agent: chief-wiggum:test
 - [ ] Write unit tests
 - [ ] Write integration tests
 - [ ] Verify coverage threshold
 Verification: `npm run test:coverage -- --threshold 80`
 
 ### REVIEW
-Agent: review
+Agent: chief-wiggum:review
 - [ ] Security review
 - [ ] Pattern compliance
 - [ ] Human approval
 Verification: `echo "Human approved"`
 
 ### MERGE
-Agent: merge
+Agent: chief-wiggum:merge
 - [ ] Rebase on main
 - [ ] Resolve conflicts
 - [ ] Final verification
