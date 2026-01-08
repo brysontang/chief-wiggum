@@ -40,9 +40,22 @@ esac
 # Truncate message for notification
 MESSAGE="${MESSAGE:0:100}"
 
+# Escape values for AppleScript (prevent injection)
+# Replace backslashes first, then double quotes
+escape_applescript() {
+    local str="$1"
+    str="${str//\\/\\\\}"  # Escape backslashes
+    str="${str//\"/\\\"}"  # Escape double quotes
+    echo "$str"
+}
+
+TITLE_SAFE=$(escape_applescript "$TITLE")
+SUBTITLE_SAFE=$(escape_applescript "$SUBTITLE")
+MESSAGE_SAFE=$(escape_applescript "$MESSAGE")
+
 # macOS notification
 if [[ "$(uname)" == "Darwin" ]]; then
-    osascript -e "display notification \"$MESSAGE\" with title \"$TITLE\" subtitle \"$SUBTITLE\" sound name \"$SOUND\"" 2>/dev/null || true
+    osascript -e "display notification \"$MESSAGE_SAFE\" with title \"$TITLE_SAFE\" subtitle \"$SUBTITLE_SAFE\" sound name \"$SOUND\"" 2>/dev/null || true
 fi
 
 # Could add Linux (notify-send) or terminal-notifier support here
