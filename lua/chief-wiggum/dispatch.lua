@@ -183,8 +183,14 @@ end
 ---@param stage_name string|nil
 ---@param agent_name string|nil
 local function init_status_file(config, task, stage_name, agent_name)
-  local status_path = config.vault_path .. "/" .. config.status_dir
-  vim.fn.mkdir(status_path, "p")
+  -- Only write status if vault exists (user must run :ChiefWiggumInit first)
+  local vault_path = vim.fn.expand(config.vault_path)
+  if vim.fn.isdirectory(vault_path) == 0 then
+    return -- Vault not initialized, skip status tracking
+  end
+
+  local status_path = vault_path .. "/" .. config.status_dir
+  vim.fn.mkdir(status_path, "p") -- OK to create status subdir if vault exists
 
   local status_file = status_path .. "/" .. task.id .. ".json"
   local existing = nil

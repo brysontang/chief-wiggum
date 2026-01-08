@@ -231,10 +231,8 @@ function M.setup(opts)
   require("chief-wiggum.config").setup(opts)
   local config = require("chief-wiggum.config").get()
 
-  -- Ensure vault exists
-  if vim.fn.isdirectory(config.vault_path) == 0 then
-    M.init_vault()
-  end
+  -- NOTE: Vault is NOT auto-created. User must run :ChiefWiggumInit explicitly.
+  -- This prevents .wiggum directories appearing in random places.
 
   -- Create user commands
   vim.api.nvim_create_user_command("ChiefWiggumStatus", M.show_status, {

@@ -45,8 +45,8 @@ M.defaults = {
   -- Worktree settings
   -- Base directory for worktrees (relative to git root)
   worktree_base = ".worktrees",
-  -- Automatically create worktree on first dispatch
-  auto_create_worktree = true,
+  -- Automatically create worktree on first dispatch (set true if you want isolation)
+  auto_create_worktree = false,
 
   -- Stage settings
   default_stages = { "RESEARCH", "PLAN", "IMPLEMENT", "TEST", "REVIEW", "MERGE" },

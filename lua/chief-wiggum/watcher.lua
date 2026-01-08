@@ -25,9 +25,15 @@ function M.setup(config)
     return
   end
 
-  local status_path = config.vault_path .. "/" .. config.status_dir
+  -- Only watch if vault exists (user must run :ChiefWiggumInit first)
+  local vault_path = vim.fn.expand(config.vault_path)
+  if vim.fn.isdirectory(vault_path) == 0 then
+    return -- Vault not initialized, skip watching
+  end
 
-  -- Ensure status directory exists
+  local status_path = vault_path .. "/" .. config.status_dir
+
+  -- Create status subdir if vault exists but status dir doesn't
   if vim.fn.isdirectory(status_path) == 0 then
     vim.fn.mkdir(status_path, "p")
   end
