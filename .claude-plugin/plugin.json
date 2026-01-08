@@ -18,7 +18,13 @@
   ],
   "license": "MIT",
   "commands": "./commands",
-  "agents": "./agents",
+  "agents": [
+    "./agents/implement.md",
+    "./agents/merge.md",
+    "./agents/recon.md",
+    "./agents/review.md",
+    "./agents/test.md"
+  ],
   "hooks": "./hooks/hooks.json",
   "skills": [
     "./skills/context-sync",
