@@ -8,7 +8,7 @@ A vim-native command center for orchestrating autonomous Claude Code agents.
 
 ## Philosophy
 
-This builds on the [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/) autonomous loop pattern. The core insights:
+Inspired by the [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/) autonomous loop pattern. The core insights:
 
 1. **Verification commands are everything** - A task isn't dispatchable unless completion can be verified by a command that outputs "DONE"
 2. **Failures are data** - Each iteration that doesn't complete provides directional feedback
@@ -576,7 +576,7 @@ dispatch_cmd = "wezterm cli spawn --new-window -- bash -c 'CHIEF_WIGGUM_TASK_ID=
 ┌─────────────────────────────────────────────────────────────┐
 │                      CLAUDE CODE                            │
 │                                                             │
-│  Works autonomously using ralph-wiggum pattern:             │
+│  Works autonomously using the ralph-wiggum pattern:         │
 │    1. Read task → 2. Implement → 3. Verify → 4. Loop       │
 │                                                             │
 │  Hooks fire automatically:                                  │
@@ -701,11 +701,11 @@ Each finding can be converted into a dispatchable task.
 | `needs_input` | Permission prompt or question |
 | `pending` | Queued but not started |
 
-## Integration with ralph-wiggum
+## The Ralph-Wiggum Pattern
 
-Chief Wiggum doesn't replace [ralph-wiggum](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/), it orchestrates it. The Stop hook uses exit code 2 to trigger ralph-style continuation.
+Chief Wiggum implements the [ralph-wiggum pattern](https://paddo.dev/blog/ralph-wiggum-autonomous-loops/) for autonomous iteration. The Stop hook uses exit code 2 to trigger continuation until the task outputs "DONE".
 
-For simpler one-off loops, use ralph-wiggum directly. Use Chief Wiggum when you need:
+Use Chief Wiggum when you need:
 - Multiple parallel agents
 - Persistent status tracking
 - Vim-native management
